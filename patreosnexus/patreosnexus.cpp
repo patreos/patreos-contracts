@@ -16,26 +16,52 @@ void patreosnexus::unsubscribe(account_name from, account_name to)
 void patreosnexus::pledge(account_name from, account_name to, uint16_t days, asset quantity)
 {
     require_auth(from);
+
+    asset min_quantity = asset(1, symbol_type(S(4, PTR)));
+
+    // Verify pledge doesn't exist already
     pledges from_pledges( _self, from ); // table scoped by pledger
     auto match = from_pledges.find( to );
     eosio_assert( match == from_pledges.end(), "pledge already exists." );
 
-    /* //TODO: get patreospayer stats
+    // Verify pledge quantity
     auto sym = quantity.symbol.name();
     stats statstable( N(patreostoken), sym );
     const auto& st = statstable.get( sym );
     eosio_assert( quantity.is_valid(), "invalid quantity" );
     eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
     eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-    */
 
-    from_pledges.emplace( _self, [&]( auto& p ) { // We pay the ram
-      p.to = to;
-      p.days = days;
-      p.quantity = quantity;
-      p.last_pledge = now();
-      p.execution_count = 0;
-    });
+    // Verify from account has tokens to pledge
+    liquidstake liquidtable( N(patreostoken), from);
+    const auto& lt = liquidtable.get( sym );
+    eosio_assert( lt.balance.amount >= quantity.amount, "insufficent liquid stake for pledge amount" );
+    eosio_assert( lt.balance.amount >= 3 * quantity.amount, "expected a liquid stake of 3x the pledge amount" );
+
+    if(quantity >= min_quantity) {
+      // We pay ram
+      from_pledges.emplace( _self, [&]( auto& p ) {
+        p.to = to;
+        p.days = days;
+        p.quantity = quantity;
+        p.last_pledge = now();
+        p.execution_count = 1;
+      });
+    } else {
+      // They pay ram
+      from_pledges.emplace( from, [&]( auto& p ) {
+        p.to = to;
+        p.days = days;
+        p.quantity = quantity;
+        p.last_pledge = now();
+        p.execution_count = 1;
+      });
+    }
+
+    // Send off first pledge with _self authority
+    action(permission_level{ _self, N(eosio.code) },
+        N(patreostoken), N(pledge),
+        std::make_tuple(from, to, quantity, "<3")).send();
 
 }
 
@@ -50,10 +76,42 @@ void patreosnexus::unpledge(account_name from, account_name to)
     from_pledges.erase( itr );
 }
 
+/// @abi action
+void patreosnexus::process(account_name from, account_name to, asset quantity)
+{
+    // This is a public action
+    pledges from_pledges( _self, from ); // table scoped by pledger
+    auto match = from_pledges.find( to );
+    eosio_assert( match != from_pledges.end(), "pledge does not exist." );
+
+    // Verify pledge quantity
+    auto sym = quantity.symbol.name();
+    stats statstable( N(patreostoken), sym );
+    const auto& st = statstable.get( sym );
+    eosio_assert( quantity.is_valid(), "invalid quantity" );
+    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
+    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+
+    double milliseconds = double(now() - match->last_pledge);
+    int days = (int) ( milliseconds / (1000 * 60 * 60 * 24) );
+    eosio_assert( days >= match->days, "pledge subscription not due" );
+
+    // Verify from account has funds
+
+    // Pay pledge amount
+    action(permission_level{ _self, N(eosio.code) },
+        N(patreostoken), N(pledge),
+        std::make_tuple(from, to, quantity, "<3")).send();
+
+    // Increment execution_count and update last_pledge
+    SEND_INLINE_ACTION( *this, pledge_paid, { _self, N(eosio.code) }, { from, to } );
+
+}
+
 // Managed only by patreospayer code
 void patreosnexus::pledge_paid(account_name from, account_name to)
 {
-    require_auth( N(patreospayer) );
+    require_auth( _self );
     pledges from_pledges( _self, from ); // table scoped by pledger
     auto match = from_pledges.find( to );
     eosio_assert( match != from_pledges.end(), "pledge does not exist." );
@@ -86,4 +144,4 @@ void patreosnexus::publish(account_name owner, publication _publication)
     require_auth(owner);
 }
 
-EOSIO_ABI( patreosnexus, (subscribe)(unsubscribe)(pledge)(unpledge)(setprofile)(unsetprofile)(publish) )
+EOSIO_ABI( patreosnexus, (subscribe)(unsubscribe)(pledge)(unpledge)(setprofile)(unsetprofile)(publish)(process) )

@@ -9,12 +9,12 @@ class patreosnexus : public eosio::contract {
 private:
 
     struct publication {
-        account_name author;
+        uint64_t item; // unique
         string title;
         string description;
         string url;
 
-        account_name primary_key() const { return author; }
+        uint64_t primary_key() const { return item; }
     };
 
     struct pledge_info {
@@ -35,38 +35,35 @@ private:
         account_name primary_key() const { return owner; }
     };
 
-    // Temp tables until offchain storage
-
-    struct user_sub {
-        account_name owner;
-        std::vector<account_name> subscribers;
-        std::vector<account_name> subscribing;
-
-        account_name primary_key() const { return owner; }
-    };
-
-    struct user_pledge {
-        account_name owner;
-        std::vector<account_name> pledgers;
-        std::vector<account_name> pledging;
-
-        account_name primary_key() const { return owner; }
-    };
-
     typedef eosio::multi_index<N(profiles), profile> profiles; // creator pays ram
-    typedef eosio::multi_index<N(publications), publication> publications; // we pay ram
+    typedef eosio::multi_index<N(publications), publication> publications; // creator pays ram (optional)
 
     // Temp until offchain storage
-    typedef eosio::multi_index<N(pledges), pledge_info> pledges;
+    typedef eosio::multi_index<N(pledges), pledge_info> pledges; // we pay ram above certain PTR
 
-    // Temp until offchain storage
-    typedef eosio::multi_index<N(user_subs), user_sub> user_subs;
-    typedef eosio::multi_index<N(user_pledges), user_pledge> user_pledges;
+
+    // patreostoken definitions
+    struct account {
+       asset    balance;
+
+       uint64_t primary_key()const { return balance.symbol.name(); }
+    };
+
+    struct currency_stats {
+       asset          supply;
+       asset          max_supply;
+       account_name   issuer;
+
+       uint64_t primary_key()const { return supply.symbol.name(); }
+    };
+
+    typedef eosio::multi_index<N(liquidstake), account> liquidstake;
+    typedef eosio::multi_index<N(stat), currency_stats> stats;
 
 public:
     using contract::contract;
 
-    patreosnexus(account_name self) : contract(self) { }
+    patreosnexus(account_name self) : contract(self) {}
 
     void subscribe(account_name from, account_name to);
 
@@ -84,4 +81,5 @@ public:
 
     void publish(account_name owner, publication _publication);
 
+    void process(account_name from, account_name to, asset quantity);
 };

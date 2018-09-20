@@ -19,7 +19,7 @@ namespace eosio {
 
    class token : public contract {
       public:
-         token( account_name self ):contract(self){}
+         token( account_name self ) : contract(self) {}
 
          void create( account_name issuer,
                       asset        maximum_supply);
@@ -67,7 +67,8 @@ namespace eosio {
          };
 
          typedef eosio::multi_index<N(accounts), account> accounts;
-         typedef eosio::multi_index<N(stakedaccs), account> stakedaccs;
+         typedef eosio::multi_index<N(liquidstake), account> liquidstake; // Table for stake for pledging
+         typedef eosio::multi_index<N(lockedstake), account> lockedstake; // Table for stake for Patreos resources
          typedef eosio::multi_index<N(stat), currency_stats> stats;
 
          void sub_balance( account_name owner, asset value );
@@ -101,7 +102,7 @@ namespace eosio {
 
    asset token::get_staked_balance( account_name owner, symbol_name sym )const
    {
-      stakedaccs stakedaccountstable( _self, owner );
+      liquidstake stakedaccountstable( _self, owner );
       const auto& sac = stakedaccountstable.get( sym );
       return sac.balance;
    }
