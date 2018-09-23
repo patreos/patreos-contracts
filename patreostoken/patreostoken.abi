@@ -132,7 +132,7 @@
       ],
       "type": "account"
     },{
-      "name": "stakedaccs",
+      "name": "liquidstake",
       "index_type": "i64",
       "key_names": [
         "currency"

@@ -84,15 +84,15 @@ void token::transfer( account_name from,
     add_balance( to, quantity, _self );
 }
 
-// Managed only by patreospayer code
+// Managed only by patreosnexus code
 void token::pledge( account_name from,
                       account_name to,
                       asset        quantity,
                       string       memo )
 {
-    // We want to limit this to patreospayer code
+    // We want to limit this to patreosnexus code
     // See https://eosio.stackexchange.com/questions/1621/require-inline-action-be-sent-by-contract-and-not-account
-    require_auth( N(patreospayer) );
+    require_auth( N(patreosnexus) );
 
     eosio_assert( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.name();
@@ -173,7 +173,7 @@ void token::sub_balance( account_name owner, asset value ) {
 }
 
 void token::sub_staked_balance( account_name owner, asset value ) {
-   stakedaccs from_acnts( _self, owner );
+   liquidstake from_acnts( _self, owner );
 
    const auto& from = from_acnts.get( value.symbol.name(), "no balance object found" );
    eosio_assert( from.balance.amount >= value.amount, "overdrawn balance" );
@@ -217,7 +217,7 @@ void token::add_balance_to_existing_user( account_name owner, asset value )
 
 void token::add_staked_balance( account_name owner, asset value)
 {
-   stakedaccs to_acnts( _self, owner );
+   liquidstake to_acnts( _self, owner );
    auto to = to_acnts.find( value.symbol.name() );
    if( to == to_acnts.end() ) {
       to_acnts.emplace( owner, [&]( auto& a ){
