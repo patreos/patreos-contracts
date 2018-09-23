@@ -17,6 +17,7 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
 {
     require_auth(from);
 
+    // Min pledge before we pay
     asset min_quantity = asset(1, symbol_type(S(4, PTR)));
 
     // Verify pledge doesn't exist already
@@ -34,11 +35,13 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
 
     // Verify from account has tokens to pledge
     liquidstake liquidtable( N(patreostoken), from);
-    const auto& lt = liquidtable.get( sym );
-    eosio_assert( lt.balance.amount >= quantity.amount, "insufficent liquid stake for pledge amount" );
-    eosio_assert( lt.balance.amount >= 3 * quantity.amount, "expected a liquid stake of 3x the pledge amount" );
+    auto lt = liquidtable.find( quantity.symbol.name() );
+    eosio_assert( lt != liquidtable.end(), "liquid stake balance not found." );
+    eosio_assert( lt->balance.amount >= quantity.amount, "insufficent liquid stake for pledge amount" );
+    eosio_assert( lt->balance.amount >= 2 * quantity.amount, "expected a liquid stake of 2x the pledge amount" );
 
-    if(quantity >= min_quantity) {
+
+    if(quantity.amount >= min_quantity.amount) {
       // We pay ram
       from_pledges.emplace( _self, [&]( auto& p ) {
         p.to = to;
@@ -59,10 +62,12 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
     }
 
     // Send off first pledge with _self authority
+    
+    /*
     action(permission_level{ _self, N(eosio.code) },
         N(patreostoken), N(pledge),
         std::make_tuple(from, to, quantity, "<3")).send();
-
+      */
 }
 
 /// @abi action
