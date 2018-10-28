@@ -3,6 +3,7 @@
 #include <eosiolib/action.hpp>
 #include <eosiolib/currency.hpp>
 #include <eosiolib/multi_index.hpp>
+#include <cmath>
 
 using namespace eosio;
 using std::string;
@@ -28,7 +29,6 @@ private:
 
     struct account {
        asset    balance;
-
        uint64_t primary_key()const { return balance.symbol.name(); }
     };
 
@@ -43,6 +43,21 @@ private:
         uint64_t to;
         asset quantity;
     };
+
+    const double eos_fee_double = 0.1;
+    const double patreos_fee_double = 50;
+
+    const uint64_t EOS_PRECISION = 4;
+    const symbol_type EOS_SYMBOL = S(EOS_PRECISION, EOS);
+    const symbol_type PTR_SYMBOL = S(EOS_PRECISION, PTR);
+
+    const asset patreos_fee = eosio::asset((uint64_t)(std::pow(10, EOS_PRECISION) * patreos_fee_double), PTR_SYMBOL);
+    const asset eos_fee = eosio::asset((uint64_t)(std::pow(10, EOS_PRECISION) * eos_fee_double), EOS_SYMBOL);
+
+    const uint64_t EOS_TOKEN_CODE = N(eosio.token);
+    const uint64_t PATREOS_TOKEN_CODE = N(patreostoken);
+    const uint64_t PATREOS_NEXUS_CODE = N(patreosnexus);
+
 
 public:
     using contract::contract;
@@ -83,23 +98,23 @@ public:
         if(data.from == self || data.to != self)
             return;
 
-        bool deposit = false;
-        if(code == N(eosio.token) && data.quantity.symbol == string_to_symbol(4, "EOS")) {
-           deposit = true;
-           eosio_assert(data.quantity.amount >= 0.1, "Minimum deposit of 0.1 EOS required");
+        bool valid_deposit = false;
+        if(code == EOS_TOKEN_CODE && data.quantity.symbol == EOS_SYMBOL) {
+           valid_deposit = true;
+           eosio_assert(data.quantity.amount >= eos_fee.amount, "Minimum deposit of 0.1 EOS required");
         }
-        if(code == N(patreostoken) && data.quantity.symbol == string_to_symbol(4, "PTR")) {
-          deposit = true;
-          eosio_assert(data.quantity.amount >= 50, "Minimum deposit of 50 PTR required");
+        if(code == PATREOS_TOKEN_CODE && data.quantity.symbol == PTR_SYMBOL) {
+          valid_deposit = true;
+          eosio_assert(data.quantity.amount >= patreos_fee.amount, "Minimum deposit of 50 PTR required");
         }
-        eosio_assert(deposit == true, "We currently do not support this token");
+        eosio_assert(valid_deposit, "We currently do not support this token");
         eosio_assert(data.quantity.is_valid(), "Invalid quantity");
         eosio_assert(data.quantity.amount > 0, "Cannot transfer non-positive amount");
 
         add_balance(data.from, data.quantity, _self);
     }
 
-    void withdrawAction( uint64_t self, uint64_t code ) {
+    void withdraw( asset quantity ) {
 
     }
 
@@ -112,7 +127,7 @@ public:
         asset quantity = data.quantity;
 
         //patreosnexus
-        auto plegestable = pledges(N(patreosnexus), from);
+        auto plegestable = pledges(PATREOS_NEXUS_CODE, from);
         auto existing = plegestable.find(to);
         eosio_assert( existing != plegestable.end(), "Pledge does not exist." );
 
@@ -128,20 +143,26 @@ public:
 
           // Increment execution_count and update last_pledge
           action(permission_level{ _self, N(eosio.code) },
-              N(patreosnexus), N(pledge_paid),
+              PATREOS_NEXUS_CODE, N(pledge_paid),
               std::make_tuple(from, to)).send();
         }
     }
 };
 
-//EOSIO_ABI(patreosvault, (transferAction)(withdrawAction))
-
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
     auto self = receiver;
     patreosvault thiscontract( self );
-    switch(action) {
-        case N(transfer): return thiscontract.transferAction(receiver, code);
-        case N(withdraw): return thiscontract.withdrawAction(receiver, code);
-        case N(process): return thiscontract.process(receiver, code);
+    if (code == self) { // Calling our contract actions
+      switch (action) {
+        EOSIO_API(patreosvault, (process)(withdraw))
+      }
+    } else if(action == N(transfer)) { // Another contract making a transfer to contract account
+      return thiscontract.transferAction(receiver, code);
+      /*
+        // another option is to check code here, and pass unpacked data
+        eosio::execute_action( &thiscontract, &patreosvault::transferAction );
+      */
+    } else {
+      eosio_exit(0);
     }
 }
