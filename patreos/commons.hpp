@@ -5,7 +5,8 @@
 #include <cmath>
 
 // delay in seconds
-//const uint64_t PATREOS_UNSTAKE_DELAY = 86400 * 3;
+const uint64_t SECONDS_IN_DAY = 86400;
+//const uint64_t PATREOS_UNSTAKE_DELAY = SECONDS_IN_DAY * 3;
 const uint64_t PATREOS_UNSTAKE_DELAY = 15; // for testing
 
 const double eos_fee_double = 0.1;

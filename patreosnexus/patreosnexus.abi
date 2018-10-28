@@ -37,8 +37,8 @@
           "name": "to",
           "type": "name"
         },{
-          "name": "days",
-          "type": "uint16"
+          "name": "seconds",
+          "type": "uint32"
         },{
           "name": "quantity",
           "type": "asset"
@@ -122,7 +122,7 @@
       "fields": [
         { "name": "to", "type": "account_name" },
         { "name": "quantity", "type": "asset" },
-        { "name": "days", "type": "uint16" },
+        { "name": "seconds", "type": "uint32" },
         { "name": "last_pledge", "type": "time_point_sec" },
         { "name": "execution_count", "type": "uint16" }
       ]

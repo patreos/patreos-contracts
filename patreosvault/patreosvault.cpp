@@ -17,12 +17,12 @@ private:
         //account_name from;
         account_name to;
         asset value;
-        uint16_t days;
+        uint32_t seconds;
         time last_pledge; // now()
 
         uint64_t primary_key() const { return to; }
 
-        EOSLIB_SERIALIZE(pledge, (to)(value)(days)(last_pledge))
+        EOSLIB_SERIALIZE(pledge, (to)(value)(seconds)(last_pledge))
     };
 
     typedef eosio::multi_index<N(pledges), pledge> pledges;
@@ -33,16 +33,6 @@ private:
     };
 
     typedef eosio::multi_index<N(accounts), account> accounts;
-
-    struct withdraw_data {
-        uint64_t user;
-    };
-
-    struct process_data {
-        uint64_t from;
-        uint64_t to;
-        asset quantity;
-    };
 
 
 public:
@@ -132,8 +122,8 @@ public:
         } else {
           // Verify subscription due date
           double milliseconds_since_last_pledge = double(now() - existing->last_pledge);
-          int days_since_last_pledge = (int) ( milliseconds_since_last_pledge / (1000 * 60 * 60 * 24) );
-          eosio_assert( existing->days <= days_since_last_pledge, "Pledge subscription not due" );
+          int seconds_since_last_pledge = (int) ( milliseconds_since_last_pledge / 1000 );
+          eosio_assert( existing->seconds <= seconds_since_last_pledge, "Pledge subscription not due" );
 
           require_recipient( from );
           require_recipient( to );
@@ -148,11 +138,9 @@ public:
           }
 
           // execute subscription
-          add_balance(to, quantity - fee, _self);
           sub_balance(from, quantity);
-
-          // pay processor
-          add_balance(processor, fee, _self);
+          add_balance(to, quantity - fee, _self);
+          add_balance(processor, fee, _self); // fee to processor
 
           // Increment execution_count and update last_pledge
           action(permission_level{ _self, N(eosio.code) },

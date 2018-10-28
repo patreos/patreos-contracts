@@ -21,7 +21,7 @@ private:
     struct pledge_info {
         account_name to;
         asset quantity;
-        uint16_t days;
+        uint32_t seconds;
         time last_pledge; // now()
         uint16_t execution_count;
 
@@ -70,7 +70,7 @@ public:
 
     void unsubscribe(account_name from, account_name to);
 
-    void pledge(account_name from, account_name to, uint16_t days, asset quantity);
+    void pledge(account_name from, account_name to, uint32_t seconds, asset quantity);
 
     void pledge_paid(account_name from, account_name to);
 

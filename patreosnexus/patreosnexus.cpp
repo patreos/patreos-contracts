@@ -13,7 +13,7 @@ void patreosnexus::unsubscribe(account_name from, account_name to)
 }
 
 /// @abi action
-void patreosnexus::pledge(account_name from, account_name to, uint16_t days, asset quantity)
+void patreosnexus::pledge(account_name from, account_name to, uint32_t seconds, asset quantity)
 {
     require_auth(from);
     eosio_assert( is_account( to ), "to account does not exist");
@@ -46,7 +46,7 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
       // We pay ram
       from_pledges.emplace( _self, [&]( auto& p ) {
         p.to = to;
-        p.days = days;
+        p.seconds = seconds;
         p.quantity = quantity;
         p.last_pledge = now();
         p.execution_count = 1;
@@ -55,7 +55,7 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
       // They pay ram
       from_pledges.emplace( from, [&]( auto& p ) {
         p.to = to;
-        p.days = days;
+        p.seconds = seconds;
         p.quantity = quantity;
         p.last_pledge = now();
         p.execution_count = 1;
