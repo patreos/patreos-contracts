@@ -17,9 +17,19 @@ void patreosnexus::pledge(account_name from, account_name to, uint32_t seconds, 
 {
     require_auth(from);
     eosio_assert( is_account( to ), "to account does not exist");
+    eosio_assert(is_pledge_cycle_valid(seconds), "invalid pledge cycle");
+    eosio_assert( is_supported_asset(quantity), "We do not support this token currently");
 
-    // Min pledge before we pay
-    asset min_quantity = asset(1, symbol_type(S(4, PTR)));
+    // Check pledge quantity
+    asset min_quantity;
+    if(quantity.symbol == EOS_SYMBOL) {
+      min_quantity = min_pledge_eos;
+    } else if (quantity.symbol == PTR_SYMBOL) {
+      min_quantity = min_pledge_ptr;
+    } else {
+      eosio_assert( false, "Token quantity could not be found" );
+    }
+    eosio_assert( quantity.amount >= min_quantity.amount, "Must pledge at least min quanity");
 
     // Verify pledge doesn't exist already
     pledges from_pledges( _self, from ); // table scoped by pledger
