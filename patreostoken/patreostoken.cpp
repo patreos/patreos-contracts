@@ -92,7 +92,7 @@ void token::pledge( account_name from,
 {
     // We want to limit this to patreosnexus code
     // See https://eosio.stackexchange.com/questions/1621/require-inline-action-be-sent-by-contract-and-not-account
-    require_auth( N(patreosnexus) );
+    require_auth( PATREOS_NEXUS_CODE );
 
     eosio_assert( is_account( to ), "to account does not exist");
     auto sym = quantity.symbol.name();
@@ -134,12 +134,27 @@ void token::stake( account_name account,
     add_staked_balance( account, quantity );
 }
 
+void token::unstake (account_name account,
+                      asset        quantity,
+                      string       memo) {
+    require_auth( account );
+    transaction out{};
+    out.actions.emplace_back(
+        permission_level{ N(patreostoken), N(active) },
+        N(patreostoken),
+        N(unstakeDelay),
+        std::make_tuple(account, quantity, "<3")
+    );
+    out.delay_sec = PATREOS_UNSTAKE_DELAY;
+    out.send(account, PATREOS_TOKEN_CODE);
+}
+
 // Will have a cooldown period, reclaim tokens n hours after unstaked
-void token::unstake( account_name account,
+void token::unstakeDelay( account_name account,
                       asset        quantity,
                       string       memo )
 {
-    require_auth( account );
+    require_auth( N(patreostoken) );
     auto sym = quantity.symbol.name();
     stats statstable( _self, sym );
     const auto& st = statstable.get( sym );
@@ -232,4 +247,4 @@ void token::add_staked_balance( account_name owner, asset value)
 
 } /// namespace eosio
 
-EOSIO_ABI( eosio::token, (create)(issue)(transfer)(pledge)(stake)(unstake) )
+EOSIO_ABI( eosio::token, (create)(issue)(transfer)(pledge)(stake)(unstake)(unstakeDelay) )

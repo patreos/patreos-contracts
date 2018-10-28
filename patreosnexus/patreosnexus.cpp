@@ -16,6 +16,7 @@ void patreosnexus::unsubscribe(account_name from, account_name to)
 void patreosnexus::pledge(account_name from, account_name to, uint16_t days, asset quantity)
 {
     require_auth(from);
+    eosio_assert( is_account( to ), "to account does not exist");
 
     // Min pledge before we pay
     asset min_quantity = asset(1, symbol_type(S(4, PTR)));
@@ -27,14 +28,14 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
 
     // Verify pledge quantity
     auto sym = quantity.symbol.name();
-    stats statstable( N(patreostoken), sym );
+    stats statstable( PATREOS_TOKEN_CODE, sym );
     const auto& st = statstable.get( sym );
     eosio_assert( quantity.is_valid(), "invalid quantity" );
     eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
     eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
 
     // Verify from account has tokens to pledge
-    liquidstake liquidtable( N(patreostoken), from);
+    liquidstake liquidtable( PATREOS_TOKEN_CODE, from);
     auto lt = liquidtable.find( quantity.symbol.name() );
     eosio_assert( lt != liquidtable.end(), "liquid stake balance not found." );
     eosio_assert( lt->balance.amount >= quantity.amount, "insufficent liquid stake for pledge amount" );
@@ -62,7 +63,7 @@ void patreosnexus::pledge(account_name from, account_name to, uint16_t days, ass
     }
 
     // Send off first pledge with _self authority
-    
+
     /*
     action(permission_level{ _self, N(eosio.code) },
         N(patreostoken), N(pledge),
@@ -82,41 +83,21 @@ void patreosnexus::unpledge(account_name from, account_name to)
 }
 
 /// @abi action
-void patreosnexus::process(account_name from, account_name to, asset quantity)
+void patreosnexus::depledge(account_name from, account_name to)
 {
-    // This is a public action
+    require_auth(PATREOS_VAULT_CODE);
     pledges from_pledges( _self, from ); // table scoped by pledger
-    auto match = from_pledges.find( to );
-    eosio_assert( match != from_pledges.end(), "pledge does not exist." );
+    auto itr = from_pledges.find( to );
+    eosio_assert( itr != from_pledges.end(), "pledge does not exist." );
+    from_pledges.erase( itr );
 
-    // Verify pledge quantity
-    auto sym = quantity.symbol.name();
-    stats statstable( N(patreostoken), sym );
-    const auto& st = statstable.get( sym );
-    eosio_assert( quantity.is_valid(), "invalid quantity" );
-    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
-    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-
-    double milliseconds = double(now() - match->last_pledge);
-    int days = (int) ( milliseconds / (1000 * 60 * 60 * 24) );
-    eosio_assert( days >= match->days, "pledge subscription not due" );
-
-    // Verify from account has funds
-
-    // Pay pledge amount
-    action(permission_level{ _self, N(eosio.code) },
-        N(patreostoken), N(pledge),
-        std::make_tuple(from, to, quantity, "<3")).send();
-
-    // Increment execution_count and update last_pledge
-    SEND_INLINE_ACTION( *this, pledge_paid, { _self, N(eosio.code) }, { from, to } );
-
+    // Notify both parties
 }
 
-// Managed only by patreospayer code
+// Managed only by patreosvault code
 void patreosnexus::pledge_paid(account_name from, account_name to)
 {
-    require_auth( _self );
+    require_auth( PATREOS_VAULT_CODE );
     pledges from_pledges( _self, from ); // table scoped by pledger
     auto match = from_pledges.find( to );
     eosio_assert( match != from_pledges.end(), "pledge does not exist." );
@@ -149,4 +130,4 @@ void patreosnexus::publish(account_name owner, publication _publication)
     require_auth(owner);
 }
 
-EOSIO_ABI( patreosnexus, (subscribe)(unsubscribe)(pledge)(unpledge)(setprofile)(unsetprofile)(publish)(process) )
+EOSIO_ABI( patreosnexus, (subscribe)(unsubscribe)(pledge)(unpledge)(depledge)(setprofile)(unsetprofile)(publish) )

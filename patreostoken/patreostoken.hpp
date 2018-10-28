@@ -6,7 +6,8 @@
 
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
-
+#include <eosiolib/transaction.hpp>
+#include <../patreos/commons.hpp>
 #include <string>
 
 namespace eosiosystem {
@@ -38,6 +39,10 @@ namespace eosio {
          void unstake( account_name owner,
                         asset        quantity,
                         string       memo );
+
+         void unstakeDelay (account_name account,
+                        asset        quantity,
+                        string       memo);
 
          void pledge( account_name from,
                         account_name to,

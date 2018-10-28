@@ -1,5 +1,6 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
+#include <../patreos/commons.hpp>
 #include <string>
 
 using namespace eosio;
@@ -75,11 +76,11 @@ public:
 
     void unpledge(account_name from, account_name to);
 
+    void depledge(account_name from, account_name to);
+
     void setprofile(account_name owner, profile _profile);
 
     void unsetprofile(account_name owner);
 
     void publish(account_name owner, publication _publication);
-
-    void process(account_name from, account_name to, asset quantity);
 };

@@ -3,7 +3,7 @@
 #include <eosiolib/action.hpp>
 #include <eosiolib/currency.hpp>
 #include <eosiolib/multi_index.hpp>
-#include <cmath>
+#include <../patreos/commons.hpp>
 
 using namespace eosio;
 using std::string;
@@ -43,20 +43,6 @@ private:
         uint64_t to;
         asset quantity;
     };
-
-    const double eos_fee_double = 0.1;
-    const double patreos_fee_double = 50;
-
-    const uint64_t EOS_PRECISION = 4;
-    const symbol_type EOS_SYMBOL = S(EOS_PRECISION, EOS);
-    const symbol_type PTR_SYMBOL = S(EOS_PRECISION, PTR);
-
-    const asset patreos_fee = eosio::asset((uint64_t)(std::pow(10, EOS_PRECISION) * patreos_fee_double), PTR_SYMBOL);
-    const asset eos_fee = eosio::asset((uint64_t)(std::pow(10, EOS_PRECISION) * eos_fee_double), EOS_SYMBOL);
-
-    const uint64_t EOS_TOKEN_CODE = N(eosio.token);
-    const uint64_t PATREOS_TOKEN_CODE = N(patreostoken);
-    const uint64_t PATREOS_NEXUS_CODE = N(patreosnexus);
 
 
 public:
@@ -114,32 +100,59 @@ public:
         add_balance(data.from, data.quantity, _self);
     }
 
-    void withdraw( asset quantity ) {
-
+    void withdraw( uint64_t account, asset quantity ) {
+      require_auth( account );
     }
 
-    void process( uint64_t self, uint64_t code )
+    // Process outstanding subscriptions
+    void process( uint64_t processor, uint64_t from, uint64_t to, asset quantity )
     {
-      auto data = unpack_action_data<process_data>();
+        eosio_assert(has_auth(to) || has_auth(PATREOS_NEXUS_CODE),
+          "Not authorized to process this subscription");
+        eosio_assert( is_supported_asset(quantity), "We do not support this token currently");
 
-        account_name from = data.from;
-        account_name to = data.to;
-        asset quantity = data.quantity;
-
-        //patreosnexus
+        // Find pledge in patreosnexus
         auto plegestable = pledges(PATREOS_NEXUS_CODE, from);
         auto existing = plegestable.find(to);
         eosio_assert( existing != plegestable.end(), "Pledge does not exist." );
 
-        // TODO: Check that pledge quantity valid and set var if removed pledge
+        // Check that action asset is valid and consistent with pledge asset
+        eosio_assert( quantity.is_valid(), "invalid quantity" );
+        eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
+        eosio_assert( quantity.symbol == existing->value.symbol, "symbol precision mismatch" );
 
-        // Verify subscription date
-        double milliseconds = double(now() - existing->last_pledge);
-        int days = (int) ( milliseconds / (1000 * 60 * 60 * 24) );
-        if(days >= existing->days) {
-          // Pay pledge amount
-          add_balance(to, quantity, _self);
+        // Check from account has the funds
+        accounts from_acnts( _self, from );
+        const auto& match = from_acnts.get( quantity.symbol.name(), "no balance object found" );
+        if(match.balance.amount < quantity.amount) {
+          // Cancel pledge in patreosnexus due to insufficent funds, someone is naughty
+          action(permission_level{ _self, N(eosio.code) },
+              PATREOS_NEXUS_CODE, N(depledge),
+              std::make_tuple(from, to)).send();
+        } else {
+          // Verify subscription due date
+          double milliseconds_since_last_pledge = double(now() - existing->last_pledge);
+          int days_since_last_pledge = (int) ( milliseconds_since_last_pledge / (1000 * 60 * 60 * 24) );
+          eosio_assert( existing->days <= days_since_last_pledge, "Pledge subscription not due" );
+
+          require_recipient( from );
+          require_recipient( to );
+
+          asset fee;
+          if(quantity.symbol == EOS_SYMBOL) {
+            fee = eos_fee;
+          } else if (quantity.symbol == PTR_SYMBOL) {
+            fee = patreos_fee;
+          } else {
+            eosio_assert( false, "Token fee could not be found" );
+          }
+
+          // execute subscription
+          add_balance(to, quantity - fee, _self);
           sub_balance(from, quantity);
+
+          // pay processor
+          add_balance(processor, fee, _self);
 
           // Increment execution_count and update last_pledge
           action(permission_level{ _self, N(eosio.code) },
