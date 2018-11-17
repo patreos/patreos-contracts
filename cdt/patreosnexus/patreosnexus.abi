@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sat Nov 17 09:00:13 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sat Nov 17 16:18:52 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -9,24 +9,6 @@
                 {
                     "name": "balance",
                     "type": "asset"
-                }
-            ]
-        },
-        {
-            "name": "currency_stats",
-            "base": "",
-            "fields": [
-                {
-                    "name": "supply",
-                    "type": "asset"
-                },
-                {
-                    "name": "max_supply",
-                    "type": "asset"
-                },
-                {
-                    "name": "issuer",
-                    "type": "name"
                 }
             ]
         },
@@ -155,7 +137,7 @@
                     "type": "name"
                 },
                 {
-                    "name": "_publication",
+                    "name": "spublication",
                     "type": "publication"
                 }
             ]
@@ -169,7 +151,7 @@
                     "type": "name"
                 },
                 {
-                    "name": "_profile",
+                    "name": "sprofile",
                     "type": "profile"
                 }
             ]
@@ -277,6 +259,13 @@
     ],
     "tables": [
         {
+            "name": "account",
+            "type": "account",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
             "name": "pledges",
             "type": "pledge_data",
             "index_type": "i64",
@@ -284,29 +273,15 @@
             "key_types": []
         },
         {
-            "name": "profiles",
+            "name": "profile",
             "type": "profile",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
         },
         {
-            "name": "publications",
+            "name": "publication",
             "type": "publication",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "stakes",
-            "type": "account",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "stats",
-            "type": "currency_stats",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

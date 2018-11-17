@@ -58,6 +58,12 @@ echo "Unlocking Unsecure Wallet..."
 cleos wallet lock -n unsecure
 cleos wallet unlock -n unsecure --password $UNSECURE_WALLET_PWD
 
+echo "Adding EOSIO private key to unsecure wallet"
+cleos wallet import -n unsecure --private-key 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3
+
+echo "Adding PATREOS private key to unsecure wallet"
+cleos wallet import -n unsecure --private-key 5JoEQenCL5WEaWyxZCRbgGvxuyKnWYUcBKmtD1oc3HnYfBttHPB
+
 for key in "${PRIVATE_KEYS[@]}"
 do
   echo "Adding key: ${key} to unsecure wallet"
@@ -133,10 +139,17 @@ cleos push action eosio.token transfer '["eosio", "patreosvault","1000.0000 SYS"
 
 echo "Setting Patreos Contracts..."
 sleep 2
-cleos set contract patreostoken ~/dev/patreos/patreos-contracts/cdt/patreostoken -p patreostoken
-cleos set contract patreosnexus ~/dev/patreos/patreos-contracts/cdt/patreosnexus -p patreosnexus
-cleos set contract patreosblurb ~/dev/patreos/patreos-contracts/patreosblurb -p patreosblurb
-cleos set contract patreosvault ~/dev/patreos/patreos-contracts/patreosvault -p patreosvault
+PATREOS_CONTRACTS=(
+  patreostoken
+  patreosnexus
+  patreosblurb
+  patreosvault
+)
+for contract in "${PATREOS_CONTRACTS[@]}"
+do
+  echo "Setting Patreos contract: ${contract}"
+  cleos set contract $contract ~/dev/patreos/patreos-contracts/cdt/$contract -p $contract
+done
 
 echo "Creating Patreos Token with Issuer: ${PATREOS_USERS[0]}"
 sleep 2
@@ -160,9 +173,13 @@ done
 
 echo "Final Stats..."
 sleep 2
+echo "EOSIO Balance"
 cleos get currency balance eosio.token eosio
+
+echo "Get stats for SYS"
 cleos get currency stats eosio.token 'SYS'
 
+echo "Get stats for PATR"
 cleos get currency stats patreostoken 'PATR'
 
 echo "${PATREOS_USERS[0]} Balance:"

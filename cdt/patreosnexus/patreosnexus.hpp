@@ -43,7 +43,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
     };
 
     // patreostoken table
-    struct [[eosio::table]] currency_stats {
+    struct currency_stats {
       asset    supply;
       asset    max_supply;
       name     issuer;
@@ -55,7 +55,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       name        to;
       asset       quantity;
       uint32_t    seconds;
-      uint64_t        last_pledge; // now()
+      uint64_t    last_pledge; // now()
       uint16_t    execution_count;
 
       uint64_t primary_key() const { return to.value; }
@@ -87,12 +87,12 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
     void depledge( name from, name to );
 
     [[eosio::action]]
-    void setprofile( name owner, profile _profile );
+    void setprofile( name owner, profile sprofile );
 
     [[eosio::action]]
     void unsetprofile( name owner );
 
     [[eosio::action]]
-    void publish( name owner, publication _publication );
+    void publish( name owner, publication spublication );
 
 };

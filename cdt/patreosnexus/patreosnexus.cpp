@@ -37,7 +37,7 @@ void patreosnexus::depledge( name from, name to )
 }
 
 
-void patreosnexus::setprofile( name owner, patreosnexus::profile _profile )
+void patreosnexus::setprofile( name owner, patreosnexus::profile sprofile )
 {
 
 }
@@ -49,7 +49,7 @@ void patreosnexus::unsetprofile( name owner )
 }
 
 
-void patreosnexus::publish( name owner, patreosnexus::publication _publication )
+void patreosnexus::publish( name owner, patreosnexus::publication spublication )
 {
 
 }
