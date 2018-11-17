@@ -66,7 +66,7 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     };
 
     typedef eosio::multi_index< "accounts"_n, account > accounts;
-    typedef eosio::multi_index< "stats"_n, currency_stats > stats;
+    typedef eosio::multi_index< "stat"_n, currency_stats > stats;
 
     void sub_balance( name owner, asset value );
     void add_balance( name owner, asset value, name ram_payer );
