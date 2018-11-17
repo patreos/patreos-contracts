@@ -33,7 +33,8 @@ const double min_pledge_ptr_double = 50;
 const eosio::asset min_pledge_eos = eosio::asset((uint64_t)(std::pow(10, EOS_PRECISION) * min_pledge_eos_double), EOS_SYMBOL);
 const eosio::asset min_pledge_ptr = eosio::asset((uint64_t)(std::pow(10, EOS_PRECISION) * min_pledge_ptr_double), PTR_SYMBOL);
 
-
+const double SECONDS_IN_YEAR = 31557600;
+const double BLOCKS_PER_SECOND = 2;
 
 inline static bool is_supported_asset(const eosio::asset& asset) {
   if(asset.symbol == EOS_SYMBOL) {
