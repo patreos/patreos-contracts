@@ -61,14 +61,8 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       uint64_t primary_key() const { return to.value; }
     };
 
-    typedef eosio::multi_index<"profiles"_n, profile> profiles; // creator pays ram
-    typedef eosio::multi_index<"publications"_n, publication> publications; // creator pays ram (optional)
-
     // Temp until offchain storage
     typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
-
-    typedef eosio::multi_index<"stakes"_n, account> stakes;
-    typedef eosio::multi_index<"stats"_n, currency_stats> stats;
 
   public:
 

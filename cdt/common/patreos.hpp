@@ -11,18 +11,19 @@ const uint64_t SECONDS_IN_DAY = 86400;
 const uint64_t PATREOS_UNSTAKE_DELAY = 15; // for testing
 
 const uint64_t EOS_PRECISION = 4;
-const eosio::symbol_type EOS_SYMBOL = S(EOS_PRECISION, EOS);
-const eosio::symbol_type PTR_SYMBOL = S(EOS_PRECISION, PTR);
+
+const eosio::symbol EOS_SYMBOL = eosio::symbol("EOS", EOS_PRECISION);
+const eosio::symbol PTR_SYMBOL = eosio::symbol("PATR", EOS_PRECISION);
 
 // Contracts
-const uint64_t EOS_TOKEN_CODE = "eosio.token"_n;
-const uint64_t PATREOS_TOKEN_CODE = "patreostoken"_n;
-const uint64_t PATREOS_NEXUS_CODE = "patreosnexus"_n;
-const uint64_t PATREOS_VAULT_CODE = "patreosvault"_n;
-const uint64_t PATREOS_BLURB_CODE = "patreosblurb"_n;
+const eosio::name EOS_TOKEN_CODE = "eosio.token"_n;
+const eosio::name PATREOS_TOKEN_CODE = "patreostoken"_n;
+const eosio::name PATREOS_NEXUS_CODE = "patreosnexus"_n;
+const eosio::name PATREOS_VAULT_CODE = "patreosvault"_n;
+const eosio::name PATREOS_BLURB_CODE = "patreosblurb"_n;
 
 // Permissions
-const uint64_t EOS_CODE_PERMISSION = "eosio.code"_n;
+const eosio::name EOS_CODE_PERMISSION = "eosio.code"_n;
 
 // Fees
 const double eos_fee_double = 0.1;
