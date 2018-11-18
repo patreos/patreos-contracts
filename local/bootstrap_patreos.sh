@@ -32,6 +32,9 @@
 # Private key: 5JXT8YAsNvtipDH6oFon75EdFLHZ1x8VmwgBz2kz3be7Jr3kW4S
 # Public key: EOS5zND1SyAhuCWE1zTsdVdZvewME9vojtYXZ4ygKHsX6mv2TksSb
 
+SYSTEM_TOKEN=SYS
+PATREOS_TOKEN=PATR
+
 UNSECURE_WALLET_PWD=PW5JUuzAq3pU7u9GGZsTBsT5Tu34Nh9Qmfx4hrxe8Dqk62nhsZyEL
 
 PRIVATE_KEYS=(
@@ -92,11 +95,13 @@ cleos set contract eosio.msig ~/dev/eos/eos/build/contracts/eosio.msig
 
 echo "Creating System Token..."
 sleep 2
-cleos push action eosio.token create '{"issuer":"eosio", "maximum_supply": "1000000000.0000 SYS", "can_freeze": 0, "can_recall": 0, "can_whitelist": 0}' -p eosio.token
+JSON=$(jq -n --arg maximum_supply "1000000000.0000 $SYSTEM_TOKEN" '{ issuer: "eosio", maximum_supply: $maximum_supply, can_freeze: 0, can_recall: 0, can_whitelist: 0 }')
+cleos push action eosio.token create "${JSON}" -p eosio.token
 
 echo "Issuing System Tokens to eosio..."
 sleep 2
-cleos push action eosio.token issue '{"to":"eosio","quantity":"1000000000.0000 SYS","memo":"issue"}' -p eosio
+JSON=$(jq -n --arg quantity "1000000000.0000 $SYSTEM_TOKEN" '{ to: "eosio", quantity: $quantity, memo: "issue" }')
+cleos push action eosio.token issue "${JSON}" -p eosio
 
 echo "Setting eosio.system Contract..."
 cleos set contract eosio ~/dev/eos/eos/build/contracts/eosio.system
@@ -116,35 +121,39 @@ echo "Making user accounts..."
 for account in "${PATREOS_USERS[@]}"
 do
   echo "Creating Account: ${account} with Public Key: ${PUBLIC_KEYS[0]}"
-  cleos system newaccount  --stake-net '100.0000 SYS' --stake-cpu '100.0000 SYS' --buy-ram-kbytes 1000 eosio ${account} ${PUBLIC_KEYS[0]} ${PUBLIC_KEYS[0]}
-  cleos push action eosio.token transfer "[\"eosio\", \"${account}\",\"1000.0000 SYS\",\"<3\"]" -p eosio
+  cleos system newaccount  --stake-net "100.0000 $SYSTEM_TOKEN" --stake-cpu "100.0000 $SYSTEM_TOKEN" --buy-ram-kbytes 1000 eosio ${account} ${PUBLIC_KEYS[0]} ${PUBLIC_KEYS[0]}
+  JSON=$(jq -n --arg to "${account}" --arg quantity "1000.0000 $SYSTEM_TOKEN" '{ from: "eosio", to: $to, quantity: $quantity, memo: "<3" }')
+  cleos push action eosio.token transfer "${JSON}" -p eosio
   PUBLIC_KEYS=(${PUBLIC_KEYS[@]:1})
 done
 
-echo "Making Patreos Contract Accounts..."
-sleep 2
-cleos system newaccount  --stake-net '100.0000 SYS' --stake-cpu '100.0000 SYS' --buy-ram-kbytes 1000 eosio patreostoken EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ
-cleos system newaccount  --stake-net '100.0000 SYS' --stake-cpu '100.0000 SYS' --buy-ram-kbytes 1000 eosio patreosnexus EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ
-cleos system newaccount  --stake-net '100.0000 SYS' --stake-cpu '100.0000 SYS' --buy-ram-kbytes 1000 eosio patreosblurb EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ
-cleos system newaccount  --stake-net '100.0000 SYS' --stake-cpu '100.0000 SYS' --buy-ram-kbytes 1000 eosio patreosstake EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ
-cleos system newaccount  --stake-net '100.0000 SYS' --stake-cpu '100.0000 SYS' --buy-ram-kbytes 1000 eosio patreosvault EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ
-
-echo "Transfering System Tokens to Patreos Contract Accounts..."
-sleep 2
-cleos push action eosio.token transfer '["eosio", "patreostoken","1000.0000 SYS","<3"]' -p eosio
-cleos push action eosio.token transfer '["eosio", "patreosnexus","1000.0000 SYS","<33"]' -p eosio
-cleos push action eosio.token transfer '["eosio", "patreosblurb","1000.0000 SYS","<333"]' -p eosio
-cleos push action eosio.token transfer '["eosio", "patreosstake","1000.0000 SYS","<3333"]' -p eosio
-cleos push action eosio.token transfer '["eosio", "patreosvault","1000.0000 SYS","<33333"]' -p eosio
-
-echo "Setting Patreos Contracts..."
-sleep 2
 PATREOS_CONTRACTS=(
   patreostoken
   patreosnexus
   patreosblurb
   patreosvault
 )
+
+echo "Making Patreos Contract Accounts..."
+sleep 2
+for account in "${PATREOS_CONTRACTS[@]}"
+do
+  echo "Creating Patreos Contract Account: ${account} with Public Key: EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ"
+  cleos system newaccount  --stake-net "100.0000 $SYSTEM_TOKEN" --stake-cpu "100.0000 $SYSTEM_TOKEN" --buy-ram-kbytes 1000 eosio ${account} EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ EOS7YZQ7PbeFY8KPA9XAe3K7dkME3JKwWadMcggRPeVHRQ2DZDeoZ
+done
+
+echo "Transfering System Tokens to Patreos Contract Accounts..."
+sleep 2
+
+for account in "${PATREOS_CONTRACTS[@]}"
+do
+  echo "Transfering $SYSTEM_TOKEN to account: ${account}"
+  JSON=$(jq -n --arg to "${account}" --arg quantity "1000.0000 $SYSTEM_TOKEN" '{ from: "eosio", to: $to, quantity: $quantity, memo: "<33" }')
+  cleos push action eosio.token transfer "${JSON}" -p eosio
+done
+
+echo "Setting Patreos Contracts..."
+sleep 2
 for contract in "${PATREOS_CONTRACTS[@]}"
 do
   echo "Setting Patreos contract: ${contract}"
@@ -153,17 +162,16 @@ done
 
 echo "Creating Patreos Token with Issuer: ${PATREOS_USERS[0]}"
 sleep 2
-#cleos push action patreostoken create '{"issuer":"okayplanet12", "maximum_supply": "2000000000.0000 PATR", "can_freeze": 0, "can_recall": 0, "can_whitelist": 0}' -p patreostoken
-cleos push action patreostoken create "{\"issuer\":\"${PATREOS_USERS[0]}\", \"maximum_supply\": \"2000000000.0000 PATR\", \"can_freeze\": 0, \"can_recall\": 0, \"can_whitelist\": 0}" -p patreostoken
+JSON=$(jq -n --arg issuer "${PATREOS_USERS[0]}" --arg maximum_supply "2000000000.0000 $PATREOS_TOKEN" '{ issuer: $issuer, maximum_supply: $maximum_supply, can_freeze: 0, can_recall: 0, can_whitelist: 0 }')
+cleos push action patreostoken create "${JSON}" -p patreostoken
 
 echo "Issuing first Patreos Tokens to ${PATREOS_USERS[0]}"
 sleep 2
-#cleos push action patreostoken issue '{"to":"okayplanet12","quantity":"1000000000.0000 PATR","memo":"PATREOS <3333"}' -p okayplanet12
 
 ISSUING=(
-  "$(jq -n --arg user "${PATREOS_USERS[0]}" --arg quantity "680000000.0000 PATR" --arg memo "34% ELSEWHERE" '{ to: $user, quantity: $quantity, memo: $memo }')"
-  "$(jq -n --arg user "${PATREOS_USERS[1]}" --arg quantity "120000000.0000 PATR" --arg memo "6% INFLATION" '{ to: $user, quantity: $quantity, memo: $memo }')"
-  "$(jq -n --arg user "${PATREOS_USERS[2]}" --arg quantity "1200000000.0000 PATR" --arg memo "60% AIRDROP" '{ to: $user, quantity: $quantity, memo: $memo }')"
+  "$(jq -n --arg to "${PATREOS_USERS[0]}" --arg quantity "680000000.0000 $PATREOS_TOKEN" --arg memo "34% ELSEWHERE" '{ to: $to, quantity: $quantity, memo: $memo }')"
+  "$(jq -n --arg to "${PATREOS_USERS[1]}" --arg quantity "120000000.0000 $PATREOS_TOKEN" --arg memo "6% INFLATION" '{ to: $to, quantity: $quantity, memo: $memo }')"
+  "$(jq -n --arg to "${PATREOS_USERS[2]}" --arg quantity "1200000000.0000 $PATREOS_TOKEN" --arg memo "60% AIRDROP" '{ to: $to, quantity: $quantity, memo: $memo }')"
 )
 for issue in "${ISSUING[@]}"
 do
@@ -176,11 +184,11 @@ sleep 2
 echo "EOSIO Balance"
 cleos get currency balance eosio.token eosio
 
-echo "Get stats for SYS"
-cleos get currency stats eosio.token 'SYS'
+echo "Get stats for $SYSTEM_TOKEN"
+cleos get currency stats eosio.token "$SYSTEM_TOKEN"
 
-echo "Get stats for PATR"
-cleos get currency stats patreostoken 'PATR'
+echo "Get stats for $PATREOS_TOKEN"
+cleos get currency stats patreostoken "$PATREOS_TOKEN"
 
 echo "${PATREOS_USERS[0]} Balance:"
 cleos get currency balance patreostoken ${PATREOS_USERS[0]}
