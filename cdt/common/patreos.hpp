@@ -22,6 +22,11 @@ const eosio::name PATREOS_NEXUS_CODE = "patreosnexus"_n;
 const eosio::name PATREOS_VAULT_CODE = "patreosvault"_n;
 const eosio::name PATREOS_BLURB_CODE = "patreosblurb"_n;
 
+// actions
+const eosio::name EOS_TRANSFER_ACTION = "transfer"_n;
+const eosio::name PATREOS_NEXUS_DEPLEDGE_ACTION = "depledge"_n;
+const eosio::name PATREOS_NEXUS_PLEDGEPAID_ACTION = "pledgepaid"_n;
+
 // Permissions
 const eosio::name EOS_CODE_PERMISSION = "eosio.code"_n;
 

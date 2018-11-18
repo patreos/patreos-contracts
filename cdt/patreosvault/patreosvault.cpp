@@ -19,6 +19,7 @@ void patreosvault::sub_balance( name owner, asset value ) {
 
 void patreosvault::add_balance( name owner, asset value, name ram_payer )
 {
+   print("Adding balance to ", owner); print("\n");
    accounts to_acnts( _self, owner.value );
    auto to = to_acnts.find( value.symbol.code().raw() );
    if( to == to_acnts.end() ) {
@@ -34,22 +35,14 @@ void patreosvault::add_balance( name owner, asset value, name ram_payer )
 
 void patreosvault::transferAction( name self, name code ) {
     auto data = unpack_action_data<transfer>();
-    //if(data.from.value == self || data.to.value != self)
-    //    return;
+    eosio_assert(data.from.value != self.value, "Cannot transfer to self");
 
-    /*
-    eosio::print(">>> data.quantity.amount value is ______\n", data.quantity.amount);
-    eosio::print(">>> data.quantity.symbol value is ______\n", data.quantity.symbol);
-    eosio::print(">>> self.value is ", self);
-    eosio::print("\n");
-    eosio::print(">>> code is ", code);
-    eosio::print(", but should be ", EOS_TOKEN_CODE);
-    eosio::print("\n");
-    eosio::print(">>> code.value is ", code.value);
-    eosio::print(", but should be ", EOS_TOKEN_CODE.value);
-    eosio::print("\n");
-    */
-
+    print(">>> self is: ", self); print("\n");
+    print(">>> code is: ", code); print("\n");
+    print(">>> data.from is: ", data.from); print("\n");
+    print(">>> data.to is: ", data.to); print("\n");
+    print(">>> data.quantity.symbol is: ", data.quantity.symbol); print("\n");
+    print(">>> data.quantity.amount is: ", data.quantity.amount); print("\n");
 
     bool valid_deposit = false;
     if(code.value == EOS_TOKEN_CODE.value && data.quantity.symbol == EOS_SYMBOL) {
@@ -61,12 +54,11 @@ void patreosvault::transferAction( name self, name code ) {
       eosio_assert(data.quantity.amount >= patreos_fee.amount, "Minimum deposit of 50 PTR required");
     }
 
-
     eosio_assert(valid_deposit, "We currently do not support this token");
     eosio_assert(data.quantity.is_valid(), "Invalid quantity");
     eosio_assert(data.quantity.amount > 0, "Cannot transfer non-positive amount");
 
-    print("Thank you for your deposit!");
+    print("Thank you for your deposit!\n");
     add_balance(data.from, data.quantity, _self);
 }
 
@@ -99,7 +91,7 @@ void patreosvault::process( name processor, name from, name to, asset quantity )
     if(match.balance.amount < quantity.amount) {
       // Cancel pledge in patreosnexus due to insufficent funds, someone is naughty
       action(permission_level{ _self, EOS_CODE_PERMISSION },
-          PATREOS_NEXUS_CODE, "depledge"_n,
+          PATREOS_NEXUS_CODE, PATREOS_NEXUS_DEPLEDGE_ACTION,
           std::make_tuple(from, to)).send();
     } else {
       // Verify subscription due date
@@ -126,38 +118,32 @@ void patreosvault::process( name processor, name from, name to, asset quantity )
 
       // Increment execution_count and update last_pledge
       action(permission_level{ _self, EOS_CODE_PERMISSION },
-          PATREOS_NEXUS_CODE, "pledge_paid"_n,
+          PATREOS_NEXUS_CODE, PATREOS_NEXUS_PLEDGEPAID_ACTION,
           std::make_tuple(from, to)).send();
     }
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
-    size_t size = action_data_size();
-    //using malloc/free here potentially is not exception-safe, although WASM doesn't support exceptions
-    constexpr size_t max_stack_buffer_size = 512;
-    void* buffer = nullptr;
-    if( size > 0 ) {
-      buffer = max_stack_buffer_size < size ? malloc(size) : alloca(size);
-      read_action_data( buffer, size );
-    }
-    datastream<const char*> ds((char*)buffer, size);
-    patreosvault thiscontract( eosio::name(receiver), eosio::name(code), ds );
-
     if (code == receiver) { // Calling our contract actions
       switch (action) {
         EOSIO_DISPATCH_HELPER(patreosvault, (process)(withdraw))
       }
       /* does not allow destructor of thiscontract to run: eosio_exit(0); */
-    } else if(action == ("transfer"_n).value) { // Another contract making a transfer to contract account
+    } else if(action == EOS_TRANSFER_ACTION.value) { // Another contract making a transfer to contract account
       eosio::print( ">>> patreosvault has a transfer!\n" );
 
-      /*
-      if(code == EOS_TOKEN_CODE.value || code == PATREOS_TOKEN_CODE.value) {
-         eosio::execute_action( eosio::name(receiver), eosio::name(code), &patreosvault::transferAction );
+      size_t size = action_data_size();
+      //using malloc/free here potentially is not exception-safe, although WASM doesn't support exceptions
+      constexpr size_t max_stack_buffer_size = 512;
+      void* buffer = nullptr;
+      if( size > 0 ) {
+        buffer = max_stack_buffer_size < size ? malloc(size) : alloca(size);
+        read_action_data( buffer, size );
       }
-      */
+      datastream<const char*> ds((char*)buffer, size);
+      patreosvault thiscontract( eosio::name(receiver), eosio::name(code), ds );
+
       return thiscontract.transferAction(eosio::name(receiver), eosio::name(code));
-      //eosio::execute_action( eosio::name(receiver), eosio::name(code), &patreosvault::transferAction );
     } else {
       eosio_exit(0);
     }

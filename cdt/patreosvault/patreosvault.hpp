@@ -60,4 +60,11 @@ class [[eosio::contract("patreosvault")]] patreosvault : public contract {
 
     void transferAction( name self, name code );
 
+    static asset get_balance( name token_contract_account, name owner, symbol_code sym_code )
+    {
+      accounts accountstable( token_contract_account, owner.value );
+      const auto& ac = accountstable.get( sym_code.raw() );
+      return ac.balance;
+    }
+
 };
