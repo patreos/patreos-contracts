@@ -20,7 +20,8 @@ class [[eosio::contract("patreosvault")]] patreosvault : public contract {
     void add_balance( name owner, asset value, name ram_payer );
 
   public:
-    using contract::contract;
+
+    patreosvault(name receiver, name code, datastream<const char*> ds) : contract(receiver, code, ds){}
 
     // patreostoken table
     struct [[eosio::table]] account {
@@ -57,6 +58,6 @@ class [[eosio::contract("patreosvault")]] patreosvault : public contract {
     [[eosio::action]]
     void process( name processor, name from, name to, asset quantity );
 
-    void transferAction( uint64_t self, uint64_t code );
+    void transferAction( name self, name code );
 
 };
