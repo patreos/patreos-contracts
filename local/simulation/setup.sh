@@ -1,5 +1,5 @@
 #!/bin/bash
-source ./patreos_constants.sh
+source ~/dev/patreos/patreos-contracts/local/constants.sh
 
 echo "Additional Setup for Simulation"
 

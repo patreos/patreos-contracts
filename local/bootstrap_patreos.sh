@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Needed Vars
-source ./patreos_constants.sh
+source ~/dev/patreos/patreos-contracts/local/constants.sh
 
 echo "Compiling Patreos Contracts"
 pushd ~/dev/patreos/patreos-contracts/cdt/

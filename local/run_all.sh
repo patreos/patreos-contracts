@@ -1,7 +1,8 @@
 #!/bin/bash
+source ~/dev/patreos/patreos-contracts/local/constants.sh
 
 ./bootstrap_patreos.sh
 
-./sim_setup.sh
+./simulation/setup.sh
 
-./sim_patreos_users.sh
+./simulation/patreos_users.sh

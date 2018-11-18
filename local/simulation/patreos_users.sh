@@ -1,5 +1,5 @@
 #!/bin/bash
-source ./patreos_constants.sh
+source ~/dev/patreos/patreos-contracts/local/constants.sh
 
 echo "Unlocking Unsecure Wallet..."
 cleos wallet lock -n unsecure
@@ -32,6 +32,8 @@ JSON=$(jq -n \
 --arg from "${PATREOS_USERS[4]}" \
 --arg quantity "150.0000 $PATREOS_TOKEN" '{ from: $from, to: "patreosvault", quantity: $quantity, memo: "PATR deposit in patreosvault" }')
 cleos push action patreostoken transfer "${JSON}" -p ${PATREOS_USERS[4]}
+
+echo "What to do with: $ret"
 
 sleep 2
 
