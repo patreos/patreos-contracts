@@ -1,86 +1,100 @@
+#pragma once
+
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
-#include <../patreos/commons.hpp>
 #include <string>
+#include "../common/patreos.hpp"
 
-using namespace eosio;
+namespace eosiosystem {
+   class system_contract;
+}
+
 using std::string;
+using namespace eosio;
 
-class patreosnexus : public eosio::contract {
-private:
+class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
+  public:
 
-    struct publication {
-        uint64_t item; // unique
-        string title;
-        string description;
-        string url;
+    struct [[eosio::table]] profile {
+      name      owner;
+      string    name;
+      string    description;
 
-        uint64_t primary_key() const { return item; }
+      uint64_t primary_key() const { return owner.value; }
+      EOSLIB_SERIALIZE( profile, (owner)(name)(description) )
     };
 
-    struct pledge_info {
-        account_name to;
-        asset quantity;
-        uint32_t seconds;
-        time last_pledge; // now()
-        uint16_t execution_count;
+    struct [[eosio::table]] publication {
+      uint64_t    item; // unique
+      string      title;
+      string      description;
+      string      url;
 
-        account_name primary_key() const { return to; }
+      uint64_t primary_key() const { return item; }
+      EOSLIB_SERIALIZE( publication, (item)(title)(description)(url) )
     };
 
-    struct profile {
-        account_name owner;
-        string name;
-        string description;
+    struct [[eosio::table]] pledge_data {
+      name        creator;
+      asset       quantity;
+      uint32_t    seconds;
+      uint64_t    last_pledge; // now()
+      uint16_t    execution_count;
 
-        account_name primary_key() const { return owner; }
+      uint64_t primary_key() const { return creator.value; }
     };
 
-    typedef eosio::multi_index<N(profiles), profile> profiles; // creator pays ram
-    typedef eosio::multi_index<N(publications), publication> publications; // creator pays ram (optional)
+  private:
+
+    // patreostoken table
+    struct currency_stats {
+      asset    supply;
+      asset    max_supply;
+      name     issuer;
+
+      uint64_t primary_key() const { return supply.symbol.code().raw(); }
+    };
+
+    // patreostoken table
+    struct [[eosio::table]] account {
+      asset    balance;
+      uint64_t primary_key() const { return balance.symbol.code().raw(); }
+    };
 
     // Temp until offchain storage
-    typedef eosio::multi_index<N(pledges), pledge_info> pledges; // we pay ram above certain PTR
+    typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
+    typedef eosio::multi_index<"profiles"_n, profile> profiles; // user pays ram
+    typedef eosio::multi_index<"publications"_n, publication> publications; // we pay ram
 
+    typedef eosio::multi_index< "accounts"_n, account > accounts;
+    typedef eosio::multi_index< "stat"_n, currency_stats > stats;
 
-    // patreostoken definitions
-    struct account {
-       asset    balance;
+  public:
 
-       uint64_t primary_key()const { return balance.symbol.name(); }
-    };
-
-    struct currency_stats {
-       asset          supply;
-       asset          max_supply;
-       account_name   issuer;
-
-       uint64_t primary_key()const { return supply.symbol.name(); }
-    };
-
-    typedef eosio::multi_index<N(liquidstake), account> liquidstake;
-    typedef eosio::multi_index<N(stat), currency_stats> stats;
-
-public:
     using contract::contract;
 
-    patreosnexus(account_name self) : contract(self) {}
+    [[eosio::action]]
+    void follow( name owner, name following );
 
-    void subscribe(account_name from, account_name to);
+    [[eosio::action]]
+    void unfollow( name owner, name following );
 
-    void unsubscribe(account_name from, account_name to);
+    [[eosio::action]]
+    void pledge( name pledger, pledge_data _pledge );
 
-    void pledge(account_name from, account_name to, uint32_t seconds, asset quantity);
+    [[eosio::action]]
+    void paid( name from, name to );
 
-    void pledge_paid(account_name from, account_name to);
+    [[eosio::action]]
+    void unpledge( name pledger, name creator  );
 
-    void unpledge(account_name from, account_name to);
+    [[eosio::action]]
+    void setprofile( name owner, profile _profile );
 
-    void depledge(account_name from, account_name to);
+    [[eosio::action]]
+    void unsetprofile( name owner );
 
-    void setprofile(account_name owner, profile _profile);
+    [[eosio::action]]
+    void publish( name owner, publication _publication );
 
-    void unsetprofile(account_name owner);
-
-    void publish(account_name owner, publication _publication);
 };

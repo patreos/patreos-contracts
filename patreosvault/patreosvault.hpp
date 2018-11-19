@@ -19,6 +19,15 @@ class [[eosio::contract("patreosvault")]] patreosvault : public contract {
     void sub_balance( name owner, asset value );
     void add_balance( name owner, asset value, name ram_payer );
 
+    // patreostoken table
+    struct currency_stats {
+      asset    supply;
+      asset    max_supply;
+      name     issuer;
+
+      uint64_t primary_key() const { return supply.symbol.code().raw(); }
+    };
+
   public:
 
     patreosvault(name receiver, name code, datastream<const char*> ds) : contract(receiver, code, ds){}
@@ -34,26 +43,27 @@ class [[eosio::contract("patreosvault")]] patreosvault : public contract {
       name        to;
       asset       quantity;
       uint32_t    seconds;
-      uint64_t        last_pledge; // now()
+      uint64_t    last_pledge; // now()
       uint16_t    execution_count;
 
       uint64_t primary_key() const { return to.value; }
     };
 
     struct transfer {
-       name from;
-       name to;
-       asset        quantity;
-       string       memo;
+       name     from;
+       name     to;
+       asset    quantity;
+       string   memo;
 
        EOSLIB_SERIALIZE( transfer, (from)(to)(quantity)(memo) )
     };
 
     typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
     typedef eosio::multi_index<"accounts"_n, account> accounts;
+    typedef eosio::multi_index<"stat"_n, currency_stats> stats;
 
     [[eosio::action]]
-    void withdraw( name account, asset quantity );
+    void withdraw( name owner, asset quantity );
 
     [[eosio::action]]
     void process( name processor, name from, name to, asset quantity );

@@ -1,23 +1,27 @@
+#include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
+
 #include <string>
 
-using namespace eosio;
+namespace eosiosystem {
+   class system_contract;
+}
+
 using std::string;
+using namespace eosio;
 
-class patreosblurb : public eosio::contract {
-public:
-  using contract::contract;
+class [[eosio::contract("patreosblurb")]] patreosblurb : public contract {
 
-  /// @abi action
-  void blurb( account_name from,
-             account_name to,
-             string memo ) {
+  public:
+    using contract::contract;
 
-    eosio_assert( from != to, "cannot ping self" );
-    require_auth( from );
-    eosio_assert( is_account( to ), "to account does not exist");
-    require_recipient( to );
-  }
+    [[eosio::action]]
+    void blurb( name from, name to, string memo ) {
+      eosio_assert( from != to, "cannot blurb to self" );
+      require_auth( from );
+      eosio_assert( is_account( to ), "to account does not exist");
+      require_recipient( to );
+    }
 };
 
-EOSIO_ABI( patreosblurb, (blurb) )
+EOSIO_DISPATCH( patreosblurb, (blurb) )

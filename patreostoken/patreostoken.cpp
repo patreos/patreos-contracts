@@ -1,14 +1,8 @@
-/**
- *  @file
- *  @copyright defined in eos/LICENSE.txt
- */
-
 #include "patreostoken.hpp"
 
-namespace eosio {
+using namespace eosio;
 
-void token::create( account_name issuer,
-                    asset        maximum_supply )
+void patreostoken::create( name issuer, asset maximum_supply )
 {
     require_auth( _self );
 
@@ -17,8 +11,8 @@ void token::create( account_name issuer,
     eosio_assert( maximum_supply.is_valid(), "invalid supply");
     eosio_assert( maximum_supply.amount > 0, "max-supply must be positive");
 
-    stats statstable( _self, sym.name() );
-    auto existing = statstable.find( sym.name() );
+    stats statstable( _self, sym.code().raw() );
+    auto existing = statstable.find( sym.code().raw() );
     eosio_assert( existing == statstable.end(), "token with symbol already exists" );
 
     statstable.emplace( _self, [&]( auto& s ) {
@@ -29,15 +23,14 @@ void token::create( account_name issuer,
 }
 
 
-void token::issue( account_name to, asset quantity, string memo )
+void patreostoken::issue( name to, asset quantity, string memo )
 {
     auto sym = quantity.symbol;
     eosio_assert( sym.is_valid(), "invalid symbol name" );
     eosio_assert( memo.size() <= 256, "memo has more than 256 bytes" );
 
-    auto sym_name = sym.name();
-    stats statstable( _self, sym_name );
-    auto existing = statstable.find( sym_name );
+    stats statstable( _self, sym.code().raw() );
+    auto existing = statstable.find( sym.code().raw() );
     eosio_assert( existing != statstable.end(), "token with symbol does not exist, create token before issue" );
     const auto& st = *existing;
 
@@ -48,28 +41,54 @@ void token::issue( account_name to, asset quantity, string memo )
     eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
     eosio_assert( quantity.amount <= st.max_supply.amount - st.supply.amount, "quantity exceeds available supply");
 
-    statstable.modify( st, 0, [&]( auto& s ) {
+    statstable.modify( st, same_payer, [&]( auto& s ) {
        s.supply += quantity;
     });
 
     add_balance( st.issuer, quantity, st.issuer );
 
     if( to != st.issuer ) {
-       SEND_INLINE_ACTION( *this, transfer, {st.issuer,N(active)}, {st.issuer, to, quantity, memo} );
+      SEND_INLINE_ACTION( *this, transfer, { {st.issuer, "active"_n} },
+                          { st.issuer, to, quantity, memo }
+      );
     }
 }
 
-void token::transfer( account_name from,
-                      account_name to,
-                      asset        quantity,
-                      string       memo )
+void patreostoken::retire( asset quantity, string memo )
+{
+    auto sym = quantity.symbol;
+    eosio_assert( sym.is_valid(), "invalid symbol name" );
+    eosio_assert( memo.size() <= 256, "memo has more than 256 bytes" );
+
+    stats statstable( _self, sym.code().raw() );
+    auto existing = statstable.find( sym.code().raw() );
+    eosio_assert( existing != statstable.end(), "token with symbol does not exist" );
+    const auto& st = *existing;
+
+    require_auth( st.issuer );
+    eosio_assert( quantity.is_valid(), "invalid quantity" );
+    eosio_assert( quantity.amount > 0, "must retire positive quantity" );
+
+    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+
+    statstable.modify( st, same_payer, [&]( auto& s ) {
+       s.supply -= quantity;
+    });
+
+    sub_balance( st.issuer, quantity );
+}
+
+void patreostoken::transfer( name    from,
+                      name    to,
+                      asset   quantity,
+                      string  memo )
 {
     eosio_assert( from != to, "cannot transfer to self" );
     require_auth( from );
     eosio_assert( is_account( to ), "to account does not exist");
-    auto sym = quantity.symbol.name();
-    stats statstable( _self, sym );
-    const auto& st = statstable.get( sym );
+    auto sym = quantity.symbol.code();
+    stats statstable( _self, sym.raw() );
+    const auto& st = statstable.get( sym.raw() );
 
     require_recipient( from );
     require_recipient( to );
@@ -79,172 +98,67 @@ void token::transfer( account_name from,
     eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
     eosio_assert( memo.size() <= 256, "memo has more than 256 bytes" );
 
+    auto payer = has_auth( to ) ? to : from;
 
     sub_balance( from, quantity );
-    add_balance( to, quantity, _self );
+    add_balance( to, quantity, payer );
 }
 
-// Managed only by patreosnexus code
-void token::pledge( account_name from,
-                      account_name to,
-                      asset        quantity,
-                      string       memo )
-{
-    // We want to limit this to patreosnexus code
-    // See https://eosio.stackexchange.com/questions/1621/require-inline-action-be-sent-by-contract-and-not-account
-    require_auth( PATREOS_NEXUS_CODE );
+void patreostoken::sub_balance( name owner, asset value ) {
+   accounts from_acnts( _self, owner.value );
 
-    eosio_assert( is_account( to ), "to account does not exist");
-    auto sym = quantity.symbol.name();
-    stats statstable( _self, sym );
-    const auto& st = statstable.get( sym );
-
-    require_recipient( from );
-    require_recipient( to );
-
-    eosio_assert( quantity.is_valid(), "invalid quantity" );
-    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
-    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-    eosio_assert( memo.size() <= 256, "memo has more than 256 bytes" );
-
-
-    // Only staked tokens can be pledged to accounts
-    sub_staked_balance( from, quantity );
-    add_balance_to_existing_user( to, quantity );
-}
-
-void token::stake( account_name account,
-                      asset        quantity,
-                      string       memo )
-{
-    require_auth( account );
-    auto sym = quantity.symbol.name();
-    stats statstable( _self, sym );
-    const auto& st = statstable.get( sym );
-
-    require_recipient( account );
-
-    eosio_assert( quantity.is_valid(), "invalid quantity" );
-    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
-    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-    eosio_assert( memo.size() <= 256, "memo has more than 256 bytes" );
-
-
-    sub_balance( account, quantity );
-    add_staked_balance( account, quantity );
-}
-
-void token::unstake (account_name account,
-                      asset        quantity,
-                      string       memo) {
-    require_auth( account );
-    transaction out{};
-    out.actions.emplace_back(
-        permission_level{ N(patreostoken), N(active) },
-        N(patreostoken),
-        N(unstakeDelay),
-        std::make_tuple(account, quantity, "<3")
-    );
-    out.delay_sec = PATREOS_UNSTAKE_DELAY;
-    out.send(account, PATREOS_TOKEN_CODE);
-}
-
-// Will have a cooldown period, reclaim tokens n hours after unstaked
-void token::unstakeDelay( account_name account,
-                      asset        quantity,
-                      string       memo )
-{
-    require_auth( N(patreostoken) );
-    auto sym = quantity.symbol.name();
-    stats statstable( _self, sym );
-    const auto& st = statstable.get( sym );
-
-    require_recipient( account );
-
-    eosio_assert( quantity.is_valid(), "invalid quantity" );
-    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
-    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
-    eosio_assert( memo.size() <= 256, "memo has more than 256 bytes" );
-
-
-    sub_staked_balance( account, quantity );
-    add_balance( account, quantity, account );
-}
-
-void token::sub_balance( account_name owner, asset value ) {
-   accounts from_acnts( _self, owner );
-
-   const auto& from = from_acnts.get( value.symbol.name(), "no balance object found" );
+   const auto& from = from_acnts.get( value.symbol.code().raw(), "no balance object found" );
    eosio_assert( from.balance.amount >= value.amount, "overdrawn balance" );
 
-
-   if( from.balance.amount == value.amount ) {
-      from_acnts.erase( from );
-   } else {
-      from_acnts.modify( from, owner, [&]( auto& a ) {
-          a.balance -= value;
+   from_acnts.modify( from, owner, [&]( auto& a ) {
+         a.balance -= value;
       });
-   }
 }
 
-void token::sub_staked_balance( account_name owner, asset value ) {
-   liquidstake from_acnts( _self, owner );
-
-   const auto& from = from_acnts.get( value.symbol.name(), "no balance object found" );
-   eosio_assert( from.balance.amount >= value.amount, "overdrawn balance" );
-
-
-   if( from.balance.amount == value.amount ) {
-      from_acnts.erase( from );
-   } else {
-      from_acnts.modify( from, owner, [&]( auto& a ) {
-          a.balance -= value;
-      });
-   }
-}
-
-void token::add_balance( account_name owner, asset value, account_name ram_payer )
+void patreostoken::add_balance( name owner, asset value, name ram_payer )
 {
-   accounts to_acnts( _self, owner );
-   auto to = to_acnts.find( value.symbol.name() );
+   accounts to_acnts( _self, owner.value );
+   auto to = to_acnts.find( value.symbol.code().raw() );
    if( to == to_acnts.end() ) {
       to_acnts.emplace( ram_payer, [&]( auto& a ){
         a.balance = value;
       });
    } else {
-      to_acnts.modify( to, 0, [&]( auto& a ) {
+      to_acnts.modify( to, same_payer, [&]( auto& a ) {
         a.balance += value;
       });
    }
 }
 
-void token::add_balance_to_existing_user( account_name owner, asset value )
+void patreostoken::open( name owner, const symbol& symbol, name ram_payer )
 {
-   accounts to_acnts( _self, owner );
-   auto to = to_acnts.find( value.symbol.name() );
+   require_auth( ram_payer );
 
-   eosio_assert( to != to_acnts.end(), "user does not exist" );
+   auto sym_code_raw = symbol.code().raw();
 
-   to_acnts.modify( to, 0, [&]( auto& a ) {
-     a.balance += value;
-   });
-}
+   stats statstable( _self, sym_code_raw );
+   const auto& st = statstable.get( sym_code_raw, "symbol does not exist" );
+   eosio_assert( st.supply.symbol == symbol, "symbol precision mismatch" );
 
-void token::add_staked_balance( account_name owner, asset value)
-{
-   liquidstake to_acnts( _self, owner );
-   auto to = to_acnts.find( value.symbol.name() );
-   if( to == to_acnts.end() ) {
-      to_acnts.emplace( owner, [&]( auto& a ){
-        a.balance = value;
-      });
-   } else {
-      to_acnts.modify( to, 0, [&]( auto& a ) {
-        a.balance += value;
+   accounts acnts( _self, owner.value );
+   auto it = acnts.find( sym_code_raw );
+   if( it == acnts.end() ) {
+      acnts.emplace( ram_payer, [&]( auto& a ){
+        a.balance = asset{0, symbol};
       });
    }
 }
 
-} /// namespace eosio
+void patreostoken::close( name owner, const symbol& symbol )
+{
+   require_auth( owner );
+   accounts acnts( _self, owner.value );
+   auto it = acnts.find( symbol.code().raw() );
+   eosio_assert( it != acnts.end(), "Balance row already deleted or never existed. Action won't have any effect." );
+   eosio_assert( it->balance.amount == 0, "Cannot close because the balance is not zero." );
+   acnts.erase( it );
+}
 
-EOSIO_ABI( eosio::token, (create)(issue)(transfer)(pledge)(stake)(unstake)(unstakeDelay) )
+
+
+EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(retire) )
