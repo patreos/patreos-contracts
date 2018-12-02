@@ -76,5 +76,4 @@ class [[eosio::contract("patreosvault")]] patreosvault : public contract {
       const auto& ac = accountstable.get( sym_code.raw() );
       return ac.balance;
     }
-
 };

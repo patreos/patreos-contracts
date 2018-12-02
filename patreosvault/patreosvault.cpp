@@ -3,14 +3,15 @@
 #include <eosiolib/action.hpp>
 #include <eosiolib/multi_index.hpp>
 #include "patreosvault.hpp"
+#include "../common/messages.hpp"
 
 using namespace eosio;
 
 void patreosvault::sub_balance( name owner, asset value ) {
    accounts from_acnts( _self, owner.value );
 
-   const auto& from = from_acnts.get( value.symbol.code().raw(), "No balance object found" );
-   eosio_assert( from.balance.amount >= value.amount, "overdrawn balance" );
+   const auto& from = from_acnts.get( value.symbol.code().raw(), Messages::NO_BALANCE_OBJECT );
+   eosio_assert( from.balance.amount >= value.amount, Messages::OVERDRAWN_BALANCE );
 
    from_acnts.modify( from, owner, [&]( auto& a ) {
      a.balance -= value;
@@ -49,23 +50,23 @@ void patreosvault::transferAction( name self, name code ) {
 
     bool valid_deposit = false;
     if(code.value == EOS_TOKEN_CODE.value && data.quantity.symbol == EOS_SYMBOL) {
-      eosio_assert(data.quantity.amount >= eos_fee.amount, "Minimum deposit of 0.1 EOS required");
+      eosio_assert(data.quantity.amount >= eos_fee.amount, Messages::NEED_MIN_EOS_DEPOSIT);
       valid_deposit = true;
     }
     if(code.value == PATREOS_TOKEN_CODE.value && data.quantity.symbol == PTR_SYMBOL) {
-      eosio_assert(data.quantity.amount >= patreos_fee.amount, "Minimum deposit of 50 PTR required");
+      eosio_assert(data.quantity.amount >= patreos_fee.amount, Messages::NEED_MIN_PATR_DEPOSIT);
       valid_deposit = true;
     }
 
-    eosio_assert(valid_deposit, "We currently do not support this token");
-    eosio_assert(data.quantity.is_valid(), "Invalid quantity");
-    eosio_assert(data.quantity.amount > 0, "Cannot transfer non-positive amount");
+    eosio_assert(valid_deposit, Messages::UNSUPPORTED_TOKEN);
+    eosio_assert(data.quantity.is_valid(), Messages::INVALID_QUANTITY);
+    eosio_assert(data.quantity.amount > 0, Messages::NEED_POSITIVE_TRANSFER_AMOUNT);
 
     // Reference contract token stats
     auto sym = data.quantity.symbol.code().raw();
     stats statstable( code, sym );
     const auto& st = statstable.get( sym );
-    eosio_assert( data.quantity.symbol == st.supply.symbol, "Symbol precision mismatch" );
+    eosio_assert( data.quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
 
     print(">>> Thank you for your deposit!\n");
     add_balance(data.from, data.quantity, _self);
@@ -76,7 +77,7 @@ void patreosvault::withdraw( name owner, asset quantity ) {
   require_auth( owner );
   accounts _accounts( _self, owner.value );
   auto itr = _accounts.find( quantity.symbol.code().raw() );
-  eosio_assert(itr != _accounts.end(), "No balance found for that token"); // Nice try
+  eosio_assert(itr != _accounts.end(), Messages::NO_BALANCE_FOR_TOKEN); // Nice try
 
   name token_code;
   bool defer = false;
@@ -86,7 +87,7 @@ void patreosvault::withdraw( name owner, asset quantity ) {
     token_code = PATREOS_TOKEN_CODE;
     defer = true;
   } else {
-    eosio_assert( false, "Token contract could not be found" );
+    eosio_assert( false, Messages::TOKEN_CONTRACT_DNE );
   }
 
   sub_balance(owner, quantity);
@@ -101,23 +102,23 @@ void patreosvault::withdraw( name owner, asset quantity ) {
 // Process outstanding subscriptions
 void patreosvault::process( name processor, name from, name to, asset quantity )
 {
-    eosio_assert(has_auth(to) || has_auth(PATREOS_NEXUS_CODE),
-      "Not authorized to process this subscription");
-    eosio_assert( is_supported_asset(quantity), "We do not support this token currently");
+    bool authorized = has_auth(to) || has_auth(PATREOS_NEXUS_CODE);
+    eosio_assert(authorized, Messages::NEED_AUTH_FOR_PROCESSING);
+    eosio_assert( is_supported_asset(quantity), Messages::UNSUPPORTED_TOKEN);
 
     // Find pledge in patreosnexus
     auto pledgestable = patreosvault::pledges(PATREOS_NEXUS_CODE, from.value);
     auto existing = pledgestable.find(to.value);
-    eosio_assert( existing != pledgestable.end(), "Pledge does not exist." );
+    eosio_assert( existing != pledgestable.end(), Messages::PLEDGE_DNE );
 
     // Check that action asset is valid and consistent with pledge asset
-    eosio_assert( quantity.is_valid(), "invalid quantity" );
-    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
-    eosio_assert( quantity.symbol == existing->quantity.symbol, "symbol precision mismatch" );
+    eosio_assert( quantity.is_valid(), Messages::INVALID_QUANTITY );
+    eosio_assert( quantity.amount > 0, Messages::NEED_POSITIVE_TRANSFER_QUANTITY );
+    eosio_assert( quantity.symbol == existing->quantity.symbol, Messages::INVALID_SYMBOL );
 
     // Check from account has the funds
     accounts from_acnts( _self, from.value );
-    const auto& match = from_acnts.get( quantity.symbol.code().raw(), "no balance object found" );
+    const auto& match = from_acnts.get( quantity.symbol.code().raw(), Messages::NO_BALANCE_OBJECT );
     if(match.balance.amount < quantity.amount) {
       // Cancel pledge in patreosnexus due to insufficent funds, someone is naughty
       action(permission_level{ _self, EOS_ACTIVE_PERMISSION },
@@ -127,7 +128,7 @@ void patreosvault::process( name processor, name from, name to, asset quantity )
       // Verify subscription due date
       double milliseconds_since_last_pledge = double(now() - existing->last_pledge);
       int seconds_since_last_pledge = (int) ( milliseconds_since_last_pledge / 1000 );
-      eosio_assert( existing->seconds <= seconds_since_last_pledge, "Pledge subscription not due" );
+      eosio_assert( existing->seconds <= seconds_since_last_pledge, Messages::PLEDGE_NOT_DUE );
 
       require_recipient( from );
       require_recipient( to );
@@ -138,7 +139,7 @@ void patreosvault::process( name processor, name from, name to, asset quantity )
       } else if (quantity.symbol == PTR_SYMBOL) {
         fee = patreos_fee;
       } else {
-        eosio_assert( false, "Token fee could not be found" );
+        eosio_assert( false, Messages::TOKEN_FEE_DNE );
       }
 
       // execute subscription

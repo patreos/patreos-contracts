@@ -1,6 +1,6 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
-
+#include "../common/messages.hpp"
 #include <string>
 
 namespace eosiosystem {
@@ -17,9 +17,9 @@ class [[eosio::contract("patreosblurb")]] patreosblurb : public contract {
 
     [[eosio::action]]
     void blurb( name from, name to, string memo ) {
-      eosio_assert( from != to, "cannot blurb to self" );
+      eosio_assert( from != to, Messages::CANNOT_BLURB_TO_SELF );
       require_auth( from );
-      eosio_assert( is_account( to ), "to account does not exist");
+      eosio_assert( is_account( to ), Messages::TO_ACCCOUNT_DNE );
       require_recipient( to );
     }
 };

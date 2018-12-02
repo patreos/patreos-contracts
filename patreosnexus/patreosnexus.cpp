@@ -1,4 +1,5 @@
 #include "patreosnexus.hpp"
+#include "../common/messages.hpp"
 
 using namespace eosio;
 
@@ -17,17 +18,17 @@ void patreosnexus::unfollow( name owner, name following )
 void patreosnexus::pledge( name pledger, patreosnexus::pledge_data _pledge )
 {
   require_auth(pledger);
-  eosio_assert( is_account( _pledge.creator ), "Creator account does not exist" );
+  eosio_assert( is_account( _pledge.creator ), Messages::CREATOR_ACCOUNT_DNE );
 
   // Verify pledge doesn't exist already
   pledges pledgetable( _self, pledger.value ); // table scoped by pledger
   auto match = pledgetable.find( _pledge.creator.value );
-  eosio_assert( match == pledgetable.end(), "Pledge already exists." );
+  eosio_assert( match == pledgetable.end(), Messages::PLEDGE_EXISTS );
 
   // Check pledge quantity
-  eosio_assert( is_supported_asset(_pledge.quantity), "We do not support this token currently" );
-  eosio_assert( _pledge.quantity.is_valid(), "Invalid quantity" );
-  eosio_assert( _pledge.quantity.amount > 0, "Must pledge positive quantity" );
+  eosio_assert( is_supported_asset(_pledge.quantity), Messages::UNSUPPORTED_TOKEN );
+  eosio_assert( _pledge.quantity.is_valid(), Messages::INVALID_QUANTITY );
+  eosio_assert( _pledge.quantity.amount > 0, Messages::NEED_POSITIVE_PLEDGE_QUANTITY );
 
   asset min_quantity;
   name token_code;
@@ -38,24 +39,24 @@ void patreosnexus::pledge( name pledger, patreosnexus::pledge_data _pledge )
     min_quantity = min_pledge_ptr;
     token_code = PATREOS_TOKEN_CODE;
   } else {
-    eosio_assert( false, "Token could not be found" );
+    eosio_assert( false, Messages::UNFOUND_TOKEN );
   }
-  eosio_assert( _pledge.quantity.amount >= min_quantity.amount, "Must pledge at least min quanity" );
+  eosio_assert( _pledge.quantity.amount >= min_quantity.amount, Messages::NEED_MIN_QUANTITY );
 
   // Reference quantity against token contract stats table
   auto sym = _pledge.quantity.symbol.code().raw();
   stats statstable( token_code, sym );
   const auto& st = statstable.get( sym );
-  eosio_assert( _pledge.quantity.symbol == st.supply.symbol, "Symbol precision mismatch" );
+  eosio_assert( _pledge.quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
 
   // Verify from account has tokens to pledge (either in stake or patreosvault)
   accounts _accounts( PATREOS_VAULT_CODE, pledger.value );
   auto itr = _accounts.find( sym );
-  eosio_assert( itr != _accounts.end(), "You have no balance to pledge" );
-  eosio_assert( itr->balance.amount >= _pledge.quantity.amount, "Insufficent funds for pledge amount" );
-  eosio_assert( itr->balance.amount >= 2 * _pledge.quantity.amount, "Expected a balance of 2x the pledge" );
+  eosio_assert( itr != _accounts.end(), Messages::NO_VAULT_BALANCE );
+  eosio_assert( itr->balance.amount >= _pledge.quantity.amount, Messages::NEED_PLEDGE_FUNDS );
+  eosio_assert( itr->balance.amount >= 2 * _pledge.quantity.amount, Messages::NEED_LARGER_VAULT_BALANCE );
 
-  eosio_assert( is_pledge_cycle_valid(_pledge.seconds), "Invalid pledge cycle" );
+  eosio_assert( is_pledge_cycle_valid(_pledge.seconds), Messages::INVALID_CYCLE );
 
   name ram_payer = _self;
   if(_pledge.quantity.amount < min_quantity.amount) {
@@ -81,7 +82,7 @@ void patreosnexus::paid( name from, name to )
   require_auth( PATREOS_VAULT_CODE );
   pledges pledgetable( _self, from.value ); // table scoped by pledger
   auto itr = pledgetable.find( to.value );
-  eosio_assert( itr != pledgetable.end(), "pledge does not exist." );
+  eosio_assert( itr != pledgetable.end(), Messages::PLEDGE_DNE );
 
   pledgetable.modify( itr, same_payer, [&]( auto& p ) {
       p.last_pledge = now();
@@ -93,10 +94,10 @@ void patreosnexus::paid( name from, name to )
 void patreosnexus::unpledge( name pledger, name creator )
 {
   eosio_assert(has_auth(pledger) || has_auth(PATREOS_VAULT_CODE),
-    "Not authorized to unpledge");
+    Messages::NEED_AUTH_FOR_UNPLEDGE);
   pledges pledgetable( _self, pledger.value ); // table scoped by pledger
   auto itr = pledgetable.find( creator.value );
-  eosio_assert( itr != pledgetable.end(), "pledge does not exist." );
+  eosio_assert( itr != pledgetable.end(), Messages::PLEDGE_DNE );
 
   pledgetable.erase( itr );
 }
@@ -124,7 +125,7 @@ void patreosnexus::unsetprofile( name owner )
 
   profiles _profiles( _self, _self.value ); // table scoped by contract
   auto itr = _profiles.find( owner.value );
-  eosio_assert( itr != _profiles.end(), "pledge does not exist." );
+  eosio_assert( itr != _profiles.end(), Messages::PLEDGE_DNE );
 
   _profiles.erase( itr );
 }
