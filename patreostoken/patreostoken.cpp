@@ -112,8 +112,8 @@ void patreostoken::sub_balance( name owner, asset value ) {
    eosio_assert( from.balance.amount >= value.amount, Messages::OVERDRAWN_BALANCE );
 
    from_acnts.modify( from, owner, [&]( auto& a ) {
-         a.balance -= value;
-      });
+     a.balance -= value;
+   });
 }
 
 void patreostoken::add_balance( name owner, asset value, name ram_payer )

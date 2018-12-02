@@ -76,8 +76,11 @@ void patreosvault::transferAction( name self, name code ) {
 void patreosvault::withdraw( name owner, asset quantity ) {
   require_auth( owner );
   accounts _accounts( _self, owner.value );
-  auto itr = _accounts.find( quantity.symbol.code().raw() );
-  eosio_assert(itr != _accounts.end(), Messages::NO_BALANCE_FOR_TOKEN); // Nice try
+
+  const auto& from = _accounts.get( quantity.symbol.code().raw(), Messages::NO_BALANCE_FOR_TOKEN ); // Nice try
+  eosio_assert( from.balance.amount >= quantity.amount, Messages::OVERDRAWN_BALANCE );
+  eosio_assert( quantity.is_valid(), Messages::INVALID_QUANTITY );
+  eosio_assert( quantity.amount > 0, Messages::NEED_POSITIVE_TRANSFER_QUANTITY );
 
   name token_code;
   bool defer = false;
@@ -90,9 +93,14 @@ void patreosvault::withdraw( name owner, asset quantity ) {
     eosio_assert( false, Messages::TOKEN_CONTRACT_DNE );
   }
 
+  auto sym = quantity.symbol.code();
+  stats statstable( token_code, sym.raw() );
+  const auto& st = statstable.get( sym.raw() );
+  eosio_assert( quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
+
   sub_balance(owner, quantity);
 
-  // If PATR, defer transaction 3 days
+  // If PATR, defer transaction 3 days, but consider issues with deferred tx
   action(permission_level{ PATREOS_VAULT_CODE, EOS_ACTIVE_PERMISSION },
       token_code, EOS_TRANSFER_ACTION,
       std::make_tuple(_self, owner, quantity, std::string("Here's your money back"))).send();
