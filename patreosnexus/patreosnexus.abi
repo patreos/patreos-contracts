@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sat Dec  1 18:52:49 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sun Dec 16 13:28:18 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -255,6 +255,13 @@
         {
             "name": "publications",
             "type": "publication",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "usage",
+            "type": "account",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

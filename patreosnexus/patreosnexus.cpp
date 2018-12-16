@@ -41,7 +41,6 @@ void patreosnexus::pledge( name pledger, patreosnexus::pledge_data _pledge )
   } else {
     eosio_assert( false, Messages::UNFOUND_TOKEN );
   }
-  eosio_assert( _pledge.quantity.amount >= min_quantity.amount, Messages::NEED_MIN_QUANTITY );
 
   // Reference quantity against token contract stats table
   auto sym = _pledge.quantity.symbol.code().raw();
@@ -49,14 +48,18 @@ void patreosnexus::pledge( name pledger, patreosnexus::pledge_data _pledge )
   const auto& st = statstable.get( sym );
   eosio_assert( _pledge.quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
 
-  // Verify from account has tokens to pledge (either in stake or patreosvault)
+  // Verify from account has tokens to pledge (in patreosvault)
   accounts _accounts( PATREOS_VAULT_CODE, pledger.value );
-  auto itr = _accounts.find( sym );
-  eosio_assert( itr != _accounts.end(), Messages::NO_VAULT_BALANCE );
-  eosio_assert( itr->balance.amount >= _pledge.quantity.amount, Messages::NEED_PLEDGE_FUNDS );
-  eosio_assert( itr->balance.amount >= 2 * _pledge.quantity.amount, Messages::NEED_LARGER_VAULT_BALANCE );
+  const auto& at = _accounts.get( sym, Messages::NO_VAULT_BALANCE );
+  eosio_assert( at.balance.amount >= _pledge.quantity.amount, Messages::NEED_PLEDGE_FUNDS );
+
+  // This isn't needed, creates resistance.
+  //eosio_assert( itr->balance.amount >= 2 * _pledge.quantity.amount, Messages::NEED_LARGER_VAULT_BALANCE );
 
   eosio_assert( is_pledge_cycle_valid(_pledge.seconds), Messages::INVALID_CYCLE );
+
+  // TODO: consider removing this requirement
+  eosio_assert( _pledge.quantity.amount >= min_quantity.amount, Messages::NEED_MIN_QUANTITY );
 
   name ram_payer = _self;
   if(_pledge.quantity.amount < min_quantity.amount) {
@@ -93,8 +96,12 @@ void patreosnexus::paid( name from, name to )
 // Pledges can be terminated by patreosvault if balance overdrawn
 void patreosnexus::unpledge( name pledger, name creator )
 {
-  eosio_assert(has_auth(pledger) || has_auth(PATREOS_VAULT_CODE),
-    Messages::NEED_AUTH_FOR_UNPLEDGE);
+  bool is_vault = has_auth(PATREOS_VAULT_CODE);
+  eosio_assert(has_auth(pledger) || is_vault, Messages::NEED_AUTH_FOR_UNPLEDGE);
+
+  if(is_vault) {
+    // User no longer eligible for rewards for period of time
+  }
   pledges pledgetable( _self, pledger.value ); // table scoped by pledger
   auto itr = pledgetable.find( creator.value );
   eosio_assert( itr != pledgetable.end(), Messages::PLEDGE_DNE );
@@ -105,6 +112,8 @@ void patreosnexus::unpledge( name pledger, name creator )
 void patreosnexus::setprofile( name owner, patreosnexus::profile _profile )
 {
   require_auth(owner);
+
+  // TODO: Validate _profile object
 
   profiles _profiles( _self, _self.value); // table scoped by contract
   auto itr = _profiles.find( owner.value );
@@ -133,6 +142,8 @@ void patreosnexus::unsetprofile( name owner )
 void patreosnexus::publish( name owner, patreosnexus::publication _publication )
 {
   require_auth(owner);
+
+  // Store _publication in ram until shared
 }
 
 EOSIO_DISPATCH( patreosnexus, (follow)(unfollow)(pledge)(unpledge)(publish)(paid)(setprofile)(unsetprofile) )

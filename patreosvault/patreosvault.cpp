@@ -115,32 +115,34 @@ void patreosvault::process( name processor, name from, name to, asset quantity )
     eosio_assert( is_supported_asset(quantity), Messages::UNSUPPORTED_TOKEN);
 
     // Find pledge in patreosnexus
-    auto pledgestable = patreosvault::pledges(PATREOS_NEXUS_CODE, from.value);
-    auto existing = pledgestable.find(to.value);
-    eosio_assert( existing != pledgestable.end(), Messages::PLEDGE_DNE );
+    auto pt = patreosvault::pledges(PATREOS_NEXUS_CODE, from.value);
+    const auto& pledge = pt.get( to.value, Messages::PLEDGE_DNE );
 
     // Check that action asset is valid and consistent with pledge asset
     eosio_assert( quantity.is_valid(), Messages::INVALID_QUANTITY );
     eosio_assert( quantity.amount > 0, Messages::NEED_POSITIVE_TRANSFER_QUANTITY );
-    eosio_assert( quantity.symbol == existing->quantity.symbol, Messages::INVALID_SYMBOL );
+    eosio_assert( quantity.symbol == pledge.quantity.symbol, Messages::INVALID_SYMBOL );
 
     // Check from account has the funds
     accounts from_acnts( _self, from.value );
-    const auto& match = from_acnts.get( quantity.symbol.code().raw(), Messages::NO_BALANCE_OBJECT );
-    if(match.balance.amount < quantity.amount) {
+
+    // TODO: use .find() to avoid exception, and cancel pledge
+    const auto& vault_acnt = from_acnts.get( quantity.symbol.code().raw(), Messages::NO_BALANCE_OBJECT );
+    if(vault_acnt.balance.amount < quantity.amount) {
       // Cancel pledge in patreosnexus due to insufficent funds, someone is naughty
       action(permission_level{ _self, EOS_ACTIVE_PERMISSION },
           PATREOS_NEXUS_CODE, PATREOS_NEXUS_DEPLEDGE_ACTION,
           std::make_tuple(from, to)).send();
     } else {
       // Verify subscription due date
-      double milliseconds_since_last_pledge = double(now() - existing->last_pledge);
+      double milliseconds_since_last_pledge = double(now() - pledge.last_pledge);
       int seconds_since_last_pledge = (int) ( milliseconds_since_last_pledge / 1000 );
-      eosio_assert( existing->seconds <= seconds_since_last_pledge, Messages::PLEDGE_NOT_DUE );
+      eosio_assert( pledge.seconds <= seconds_since_last_pledge, Messages::PLEDGE_NOT_DUE );
 
       require_recipient( from );
       require_recipient( to );
 
+      // TODO: Fee only applies if `from` doesn't have stake
       asset fee;
       if(quantity.symbol == EOS_SYMBOL) {
         fee = eos_fee;

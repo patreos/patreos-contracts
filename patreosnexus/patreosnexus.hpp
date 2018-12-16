@@ -61,10 +61,10 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       uint64_t primary_key() const { return balance.symbol.code().raw(); }
     };
 
-    // Temp until offchain storage
     typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
     typedef eosio::multi_index<"profiles"_n, profile> profiles; // user pays ram
-    typedef eosio::multi_index<"publications"_n, publication> publications; // we pay ram
+    typedef eosio::multi_index<"publications"_n, publication> publications; // we pay ram, remove after processed
+    typedef eosio::multi_index< "usage"_n, account > usage; //we pay ram
 
     typedef eosio::multi_index< "accounts"_n, account > accounts;
     typedef eosio::multi_index< "stat"_n, currency_stats > stats;
