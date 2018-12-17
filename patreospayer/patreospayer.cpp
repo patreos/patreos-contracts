@@ -17,11 +17,14 @@ void patreospayer::add_balance( name owner, name contract, asset quantity, name 
 
    auto to = vault_balances.find( token_contract_id );
    if( to == vault_balances.end() ) {
+      print(" FIRST TIME!!! ");
       vault_balances.emplace( ram_payer, [&]( auto& a ){
+        a.id = vault_balances.available_primary_key();
         a.contract = contract;
         a.quantity = quantity;
       });
    } else {
+      print(" JUST UPDATING ");
       vault_balances.modify( to, same_payer, [&]( auto& a ) {
         a.quantity += quantity;
       });
@@ -42,22 +45,19 @@ void patreospayer::sub_balance( name owner, name contract, asset quantity ) {
    });
 }
 
-void patreospayer::regservice( name provider, vector<vault_token> valid_tokens )
+void patreospayer::regservice( name provider, vector<raw_provider_token> valid_tokens )
 {
    require_auth( provider );
 
    print("Registering Subscription Service Provider ", provider); print("\n");
-   services t_services( _self, _self.value );
-   auto service = t_services.find( provider.value );
-   if( service == t_services.end() ) {
-      t_services.emplace( provider, [&]( auto& s ){
-        s.provider = provider;
-        s.valid_tokens = valid_tokens;
-      });
-   } else {
-      t_services.modify( service, same_payer, [&]( auto& s ) {
-        s.valid_tokens = valid_tokens;
-      });
+   services t_services( _self, provider.value );
+   for(auto it = valid_tokens.begin(); it != valid_tokens.end(); it++ ) {
+     t_services.emplace( provider, [&]( auto& s ){
+       s.id = t_services.available_primary_key();
+       s.token_contract = (*it).token_contract;
+       s.flat_fee = (*it).flat_fee;
+       s.percentage_fee = (*it).percentage_fee;
+     });
    }
 }
 
@@ -81,23 +81,13 @@ void patreospayer::subscribe( name provider, patreospayer::agreement _agreement 
   require_auth(_agreement.from);
   eosio_assert( is_account( _agreement.to ), "To party account does not exist" );
 
-  services t_services( _self, _self.value );
-  const auto& service = t_services.get( provider.value, "Service provider not found");
+  services t_services( _self, provider.value );
 
-  asset subscription_fee;
-  bool subscription_fee_found = false;
-  std::vector<patreospayer::vault_token> valid_tokens = service.valid_tokens;
-  for(auto it = valid_tokens.begin(); it != valid_tokens.end(); it++ )    {
-      bool contract_match = (*it).contract.value == _agreement.vault_token_amount.contract.value;
-      bool symbol_match = (*it).quantity.symbol == _agreement.vault_token_amount.quantity.symbol;
-      if(contract_match && symbol_match) {
-        subscription_fee_found = true;
-        subscription_fee = (*it).quantity;
-      }
-  }
-  eosio_assert( subscription_fee_found, "Service provider does not accept your token" );
+  auto token_contract = _agreement.payer_token_amount.contract.value;
+  auto token_symbol = _agreement.payer_token_amount.quantity.symbol.code().raw();
+  auto token_by_contract = combine_ids(token_contract, token_symbol);
+  const auto& provider_token = t_services.get( token_by_contract, "Provider doesn't accept token" );
 
-  print(" Fee found is ", subscription_fee);
   agreements t_agreements( _self, provider.value ); // table scoped by provider
 
   auto party_agreement_id = combine_ids(_agreement.from.value, _agreement.to.value);
@@ -107,10 +97,14 @@ void patreospayer::subscribe( name provider, patreospayer::agreement _agreement 
   // TO VERIFY cycle
 
   // TODO: CHECK QUANITTY VALID, AMOUNT POSITIVE, etc
+
+  // Adjust fee logic
+  asset fee = provider_token.flat_fee;
+
   t_agreements.emplace( _agreement.from, [&]( auto& a ){
     a = _agreement;
     a.last_executed = 0;
-    a.fee = subscription_fee;
+    a.fee = fee;
   });
 }
 
@@ -139,7 +133,7 @@ void patreospayer::transferAction( name self, name code ) {
     eosio_assert( data.quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
 
     print(">>> Thank you for your deposit!\n");
-    add_balance(data.from, code, data.quantity, data.from);
+    add_balance(data.from, code, data.quantity, _self);
 }
 
 

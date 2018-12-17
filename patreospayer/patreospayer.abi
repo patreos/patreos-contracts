@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sun Dec 16 13:28:29 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sun Dec 16 20:54:44 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -29,8 +29,8 @@
                     "type": "name"
                 },
                 {
-                    "name": "vault_token_amount",
-                    "type": "vault_token"
+                    "name": "payer_token_amount",
+                    "type": "payer_token"
                 },
                 {
                     "name": "cycle",
@@ -47,6 +47,64 @@
             ]
         },
         {
+            "name": "payer_token",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "contract",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "provider_token",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "flat_fee",
+                    "type": "asset"
+                },
+                {
+                    "name": "percentage_fee",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "raw_provider_token",
+            "base": "",
+            "fields": [
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "flat_fee",
+                    "type": "asset"
+                },
+                {
+                    "name": "percentage_fee",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
             "name": "regservice",
             "base": "",
             "fields": [
@@ -56,21 +114,7 @@
                 },
                 {
                     "name": "valid_tokens",
-                    "type": "vault_token[]"
-                }
-            ]
-        },
-        {
-            "name": "service",
-            "base": "",
-            "fields": [
-                {
-                    "name": "provider",
-                    "type": "name"
-                },
-                {
-                    "name": "valid_tokens",
-                    "type": "vault_token[]"
+                    "type": "raw_provider_token[]"
                 }
             ]
         },
@@ -106,24 +150,6 @@
                 },
                 {
                     "name": "fee",
-                    "type": "asset"
-                }
-            ]
-        },
-        {
-            "name": "vault_token",
-            "base": "",
-            "fields": [
-                {
-                    "name": "id",
-                    "type": "uint64"
-                },
-                {
-                    "name": "contract",
-                    "type": "name"
-                },
-                {
-                    "name": "quantity",
                     "type": "asset"
                 }
             ]
@@ -183,14 +209,14 @@
         },
         {
             "name": "balances",
-            "type": "vault_token",
+            "type": "payer_token",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
         },
         {
             "name": "services",
-            "type": "service",
+            "type": "provider_token",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

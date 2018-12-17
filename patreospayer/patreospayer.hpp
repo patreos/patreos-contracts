@@ -38,8 +38,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
         return (uint128_t{x} << 64) | y;
     }
 
-    // A vault token has the origin contract and asset quantity
-    struct [[eosio::table]] vault_token {
+    struct [[eosio::table]] payer_token {
       uint64_t id;
       name contract;
       asset quantity;
@@ -50,12 +49,24 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
       }
     };
 
-    // subscription service provider
-    struct [[eosio::table]] service {
-      name provider;
-      vector<vault_token> valid_tokens;
+    // Non-table form
+    struct raw_provider_token {
+      name token_contract;
+      asset flat_fee;
+      float percentage_fee;
+    };
 
-      uint64_t primary_key() const { return provider.value; }
+    // Provider tokens have origin contract, and fee descriptions
+    struct [[eosio::table]] provider_token {
+      uint64_t id;
+      name token_contract;
+      asset flat_fee;
+      float percentage_fee;
+
+      uint64_t primary_key() const { return id; }
+      uint128_t get_token_by_contract() const {
+        return (uint128_t{token_contract.value} << 64) | flat_fee.symbol.code().raw();
+      }
     };
 
     // subscription agreement
@@ -63,7 +74,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
       uint64_t id;
       name from;
       name to;
-      vault_token vault_token_amount;
+      payer_token payer_token_amount;
       uint64_t cycle;
       uint64_t last_executed;
       asset fee;
@@ -97,12 +108,17 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
       >
     > agreements;
 
-    typedef eosio::multi_index<"services"_n, service> services;
-
-    typedef multi_index<"balances"_n, vault_token,
+    typedef multi_index<"services"_n, provider_token,
       indexed_by<
         "tokenbycode"_n,
-        const_mem_fun <vault_token, uint128_t, &vault_token::get_token_by_contract>
+        const_mem_fun <provider_token, uint128_t, &provider_token::get_token_by_contract>
+      >
+    > services;
+
+    typedef multi_index<"balances"_n, payer_token,
+      indexed_by<
+        "tokenbycode"_n,
+        const_mem_fun <payer_token, uint128_t, &payer_token::get_token_by_contract>
       >
     > balances;
 
@@ -110,7 +126,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
     typedef eosio::multi_index<"stat"_n, currency_stats> stats;
 
     [[eosio::action]]
-    void regservice( name provider, vector<vault_token> valid_tokens );
+    void regservice( name provider, vector<raw_provider_token> valid_tokens );
 
     [[eosio::action]]
     void withdraw( name owner, asset quantity );
