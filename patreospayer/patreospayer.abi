@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sun Dec 16 20:54:44 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Mon Dec 24 11:29:25 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -29,16 +29,20 @@
                     "type": "name"
                 },
                 {
-                    "name": "payer_token_amount",
-                    "type": "payer_token"
+                    "name": "token_profile_amount",
+                    "type": "raw_token_profile"
                 },
                 {
                     "name": "cycle",
-                    "type": "uint64"
+                    "type": "uint32"
                 },
                 {
                     "name": "last_executed",
                     "type": "uint64"
+                },
+                {
+                    "name": "execution_count",
+                    "type": "uint16"
                 },
                 {
                     "name": "fee",
@@ -47,13 +51,63 @@
             ]
         },
         {
-            "name": "payer_token",
+            "name": "process",
             "base": "",
             "fields": [
                 {
-                    "name": "id",
-                    "type": "uint64"
+                    "name": "provider",
+                    "type": "name"
                 },
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "ram_cost",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "deposits",
+                    "type": "uint16"
+                }
+            ]
+        },
+        {
+            "name": "raw_agreement",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                },
+                {
+                    "name": "token_profile_amount",
+                    "type": "raw_token_profile"
+                },
+                {
+                    "name": "cycle",
+                    "type": "uint32"
+                }
+            ]
+        },
+        {
+            "name": "raw_token_profile",
+            "base": "",
+            "fields": [
                 {
                     "name": "contract",
                     "type": "name"
@@ -65,29 +119,7 @@
             ]
         },
         {
-            "name": "provider_token",
-            "base": "",
-            "fields": [
-                {
-                    "name": "id",
-                    "type": "uint64"
-                },
-                {
-                    "name": "token_contract",
-                    "type": "name"
-                },
-                {
-                    "name": "flat_fee",
-                    "type": "asset"
-                },
-                {
-                    "name": "percentage_fee",
-                    "type": "float32"
-                }
-            ]
-        },
-        {
-            "name": "raw_provider_token",
+            "name": "raw_token_service_stat",
             "base": "",
             "fields": [
                 {
@@ -114,7 +146,7 @@
                 },
                 {
                     "name": "valid_tokens",
-                    "type": "raw_provider_token[]"
+                    "type": "raw_token_service_stat[]"
                 }
             ]
         },
@@ -127,8 +159,66 @@
                     "type": "name"
                 },
                 {
-                    "name": "_agreement",
-                    "type": "agreement"
+                    "name": "agreement",
+                    "type": "raw_agreement"
+                }
+            ]
+        },
+        {
+            "name": "token_profile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "contract",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "token_service_stat",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "token_contract",
+                    "type": "name"
+                },
+                {
+                    "name": "flat_fee",
+                    "type": "asset"
+                },
+                {
+                    "name": "percentage_fee",
+                    "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "unsubscribe",
+            "base": "",
+            "fields": [
+                {
+                    "name": "provider",
+                    "type": "name"
+                },
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
                 }
             ]
         },
@@ -172,6 +262,11 @@
     "types": [],
     "actions": [
         {
+            "name": "process",
+            "type": "process",
+            "ricardian_contract": ""
+        },
+        {
             "name": "regservice",
             "type": "regservice",
             "ricardian_contract": ""
@@ -179,6 +274,11 @@
         {
             "name": "subscribe",
             "type": "subscribe",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unsubscribe",
+            "type": "unsubscribe",
             "ricardian_contract": ""
         },
         {
@@ -209,14 +309,21 @@
         },
         {
             "name": "balances",
-            "type": "payer_token",
+            "type": "token_profile",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "ramcosts",
+            "type": "ram_cost",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
         },
         {
             "name": "services",
-            "type": "provider_token",
+            "type": "token_service_stat",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

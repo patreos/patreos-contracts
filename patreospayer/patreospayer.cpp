@@ -13,10 +13,11 @@ void patreospayer::add_balance( name owner, name contract, asset quantity, name 
    print(" Token contract is ", contract);
    print(" Adding balance to ", owner); print("\n");
    balances vault_balances( _self, owner.value );
+   auto vault_balances_secondary = vault_balances.get_index<"code.symbol"_n>();
    auto token_contract_id = combine_ids(contract.value, quantity.symbol.code().raw());
 
-   auto to = vault_balances.find( token_contract_id );
-   if( to == vault_balances.end() ) {
+   auto to = vault_balances_secondary.find( token_contract_id );
+   if( to == vault_balances_secondary.end() ) {
       print(" FIRST TIME!!! ");
       vault_balances.emplace( ram_payer, [&]( auto& a ){
         a.id = vault_balances.available_primary_key();
@@ -25,7 +26,7 @@ void patreospayer::add_balance( name owner, name contract, asset quantity, name 
       });
    } else {
       print(" JUST UPDATING ");
-      vault_balances.modify( to, same_payer, [&]( auto& a ) {
+      vault_balances_secondary.modify( to, same_payer, [&]( auto& a ) {
         a.quantity += quantity;
       });
    }
@@ -35,77 +36,178 @@ void patreospayer::sub_balance( name owner, name contract, asset quantity ) {
    print(" Token contract is ", contract);
    print(" Subtracting balance from ", owner); print("\n");
    balances vault_balances( _self, owner.value );
+   auto vault_balances_secondary = vault_balances.get_index<"code.symbol"_n>();
 
    auto token_contract_id = combine_ids(contract.value, quantity.symbol.code().raw());
-   const auto& from = vault_balances.get( token_contract_id, Messages::NO_BALANCE_OBJECT );
-   eosio_assert( from.quantity.amount >= quantity.amount, Messages::OVERDRAWN_BALANCE );
+   auto from = vault_balances_secondary.find( token_contract_id );
+   eosio_assert(from != vault_balances_secondary.end(), Messages::NO_BALANCE_OBJECT);
+   eosio_assert( from->quantity.amount >= quantity.amount, Messages::OVERDRAWN_BALANCE );
 
-   vault_balances.modify( from, owner, [&]( auto& a ) {
+   vault_balances_secondary.modify( from, owner, [&]( auto& a ) {
      a.quantity -= quantity;
    });
 }
 
-void patreospayer::regservice( name provider, vector<raw_provider_token> valid_tokens )
+void patreospayer::regservice( name provider, vector<raw_token_service_stat> valid_tokens )
 {
    require_auth( provider );
 
    print("Registering Subscription Service Provider ", provider); print("\n");
-   services t_services( _self, provider.value );
+   services services_table( _self, provider.value );
+   auto services_table_secondary = services_table.get_index<"code.symbol"_n>();
+
+   // Check that token profiles are unique
    for(auto it = valid_tokens.begin(); it != valid_tokens.end(); it++ ) {
-     t_services.emplace( provider, [&]( auto& s ){
-       s.id = t_services.available_primary_key();
-       s.token_contract = (*it).token_contract;
-       s.flat_fee = (*it).flat_fee;
-       s.percentage_fee = (*it).percentage_fee;
+     uint64_t token_contract_id = it->token_contract.value;
+     uint64_t token_symbol_id = it->flat_fee.symbol.code().raw();
+     uint128_t code_and_symbol_id = combine_ids(token_contract_id, token_symbol_id);
+     auto token_service_stat_itr = services_table_secondary.find( code_and_symbol_id );
+     if(token_service_stat_itr != services_table_secondary.end()) {
+       print("Service provider already accepts this token.  Skipping.\n");
+       continue;
+     }
+
+     services_table.emplace( provider, [&]( auto& s ){
+       s.id = services_table.available_primary_key();
+       s.token_contract = it->token_contract;
+       s.flat_fee = it->flat_fee;
+       s.percentage_fee = it->percentage_fee;
      });
    }
 }
 
+// Allow service provider to update subscription fees, increase at your own risk
 void patreospayer::updatefee( name provider, name from, name to, asset fee ) {
   require_auth( provider );
 
-  agreements t_agreements( _self, provider.value );
+  agreements agreements_table( _self, provider.value );
   auto party_agreement_id = combine_ids(from.value, to.value);
-  auto agreement = t_agreements.find( party_agreement_id );
+  auto agreement = agreements_table.find( party_agreement_id );
+
+  eosio_assert(agreement != agreements_table.end(), "Agreement not found!");
 
   // TODO: CHECK symbol
 
-  eosio_assert(agreement != t_agreements.end(), "Agreement not found!");
-  t_agreements.modify( agreement, same_payer, [&]( auto& s ) {
+  agreements_table.modify( agreement, same_payer, [&]( auto& s ) {
     s.fee = fee;
   });
-
 }
 
-void patreospayer::subscribe( name provider, patreospayer::agreement _agreement ) {
-  require_auth(_agreement.from);
-  eosio_assert( is_account( _agreement.to ), "To party account does not exist" );
+void patreospayer::subscribe( name provider, patreospayer::raw_agreement agreement ) {
+  require_auth(agreement.from);
+  eosio_assert( is_account( agreement.to ), "Receiving account does not exist" );
 
-  services t_services( _self, provider.value );
+  uint64_t token_contract_id = agreement.token_profile_amount.contract.value;
+  uint64_t token_symbol_id = agreement.token_profile_amount.quantity.symbol.code().raw();
+  uint128_t code_and_symbol_id = combine_ids(token_contract_id, token_symbol_id);
 
-  auto token_contract = _agreement.payer_token_amount.contract.value;
-  auto token_symbol = _agreement.payer_token_amount.quantity.symbol.code().raw();
-  auto token_by_contract = combine_ids(token_contract, token_symbol);
-  const auto& provider_token = t_services.get( token_by_contract, "Provider doesn't accept token" );
+  // Secondary index search
+  services services_table( _self, provider.value );
+  auto services_table_secondary = services_table.get_index<"code.symbol"_n>();
+  auto token_service_stat_itr = services_table_secondary.find( code_and_symbol_id );
 
-  agreements t_agreements( _self, provider.value ); // table scoped by provider
+  eosio_assert(token_service_stat_itr != services_table_secondary.end(), "Service provider doesn't accept this token");
 
-  auto party_agreement_id = combine_ids(_agreement.from.value, _agreement.to.value);
-  auto agreement = t_agreements.find( party_agreement_id );
-  eosio_assert(agreement == t_agreements.end(), "Agreement already exists!");
+  // TODO: Check provider token symbol == flat_fee symbol == subscription symbol
 
-  // TO VERIFY cycle
+  // Adjust fee logic by percentage
+  float percentage_fee = token_service_stat_itr->percentage_fee / 100.00;
+  asset flat_fee = token_service_stat_itr->flat_fee;
+  eosio_assert(percentage_fee <= 1, "Percentage fee cannot be more than 100");
+
+  asset percentage_fee_asset = asset(
+    (uint64_t) ( agreement.token_profile_amount.quantity.amount * percentage_fee ),
+    agreement.token_profile_amount.quantity.symbol
+  );
+  eosio_assert(percentage_fee_asset <= agreement.token_profile_amount.quantity, "Percentage fee cannot be more than subscription amount");
+
+  asset final_fee = flat_fee + percentage_fee_asset;
+  print("subscription is: ", agreement.token_profile_amount.quantity); print("\n");
+  print("final fee is: ", final_fee); print("\n");
+  eosio_assert( final_fee <= agreement.token_profile_amount.quantity, "Percentage fee cannot be more than subscription amount");
+
+  // After fee logic, verify token_service_stat is unique
+  eosio_assert(++token_service_stat_itr == services_table_secondary.end(), "Service provider should have unique token profiles!");
+
+  // Verify agreement doesn't already exist
+  agreements agreements_table( _self, provider.value );
+  auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
+
+  uint128_t party_agreement_id = combine_ids(agreement.from.value, agreement.to.value);
+  auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
+  eosio_assert(agreement_itr == agreements_table_secondary.end(), "Agreement already exists!");
+
+  eosio_assert(is_pledge_cycle_valid(agreement.cycle), "Subscription cycle not valid!");
 
   // TODO: CHECK QUANITTY VALID, AMOUNT POSITIVE, etc
 
-  // Adjust fee logic
-  asset fee = provider_token.flat_fee;
+  // CHANGE RAM OWNERSHIP OF TOKEN DEPOSIT
 
-  t_agreements.emplace( _agreement.from, [&]( auto& a ){
-    a = _agreement;
-    a.last_executed = 0;
-    a.fee = fee;
+  print("Adding agreement with secondary key (from.to): ", party_agreement_id); print("\n");
+  print("Adding agreement with secondary key: (from): ", agreement.from.value); print("\n");
+
+  agreements_table.emplace( agreement.from, [&]( auto& a ){
+    a.id = agreements_table.available_primary_key();
+    a.from = agreement.from;
+    a.to = agreement.to;
+    a.token_profile_amount.contract = agreement.token_profile_amount.contract;
+    a.token_profile_amount.quantity = agreement.token_profile_amount.quantity;
+    a.cycle = agreement.cycle;
+    a.last_executed = now();
+    a.execution_count = 0;
+    a.fee = final_fee;
   });
+}
+
+// Open to world, anyone can process
+void patreospayer::process( name provider, name from, name to ) {
+  agreements agreements_table( _self, provider.value );
+  auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
+
+  uint128_t party_agreement_id = combine_ids(from.value, to.value);
+  auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
+
+  print("Now is ", now()); print("\n");
+  print("Last executed is ", agreement_itr->last_executed); print("\n");
+  print("Cycle is ", agreement_itr->cycle); print("\n");
+
+  eosio_assert(agreement_itr != agreements_table_secondary.end(), "Agreement does not exists!");
+  eosio_assert(now() > agreement_itr->last_executed + agreement_itr->cycle, "Subscription is not due!");
+
+  sub_balance(
+    agreement_itr->from,
+    agreement_itr->token_profile_amount.contract,
+    agreement_itr->token_profile_amount.quantity
+  );
+  add_balance(
+    agreement_itr->to,
+    agreement_itr->token_profile_amount.contract,
+    agreement_itr->token_profile_amount.quantity - agreement_itr->fee,
+    _self
+  );
+  // Service provider gets fee
+  add_balance(
+    provider,
+    agreement_itr->token_profile_amount.contract,
+    agreement_itr->fee,
+    _self
+  );
+
+}
+
+void patreospayer::unsubscribe( name provider, name from, name to ) {
+  require_auth(from);
+
+  // TODO: Clear out pending subscriptions
+
+  agreements agreements_table( _self, provider.value ); // table scoped by provider
+  auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
+
+  uint128_t party_agreement_id = combine_ids(from.value, to.value);
+  auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
+  eosio_assert(agreement_itr != agreements_table_secondary.end(), "Agreement does not exist!");
+  agreement_itr = agreements_table_secondary.erase(agreement_itr);
+  eosio_assert(agreement_itr == agreements_table_secondary.end(), "Agreement should have unique entry!");
 }
 
 void patreospayer::transferAction( name self, name code ) {
@@ -173,7 +275,7 @@ void patreospayer::withdraw( name owner, asset quantity ) {
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
     if (code == receiver) { // Calling our contract actions
       switch (action) {
-        EOSIO_DISPATCH_HELPER(patreospayer, (regservice)(withdraw)(updatefee)(subscribe))
+        EOSIO_DISPATCH_HELPER(patreospayer, (regservice)(withdraw)(updatefee)(subscribe)(unsubscribe)(process))
       }
       /* does not allow destructor of thiscontract to run: eosio_exit(0); */
     } else if(action == EOS_TRANSFER_ACTION.value) { // External transfer to patreospayer
