@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Mon Dec 24 18:30:02 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Mon Dec 24 19:33:04 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -133,6 +133,16 @@
                 {
                     "name": "percentage_fee",
                     "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "registration_credit",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
                 }
             ]
         },
@@ -321,6 +331,13 @@
         {
             "name": "ramcosts",
             "type": "ram_cost",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "regcredit",
+            "type": "registration_credit",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

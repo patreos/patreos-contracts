@@ -3,7 +3,7 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/eosio.hpp>
 #include <string>
-#include "../common/patreos.hpp"
+#include "common.hpp"
 
 namespace eosiosystem {
    class system_contract;
@@ -43,6 +43,12 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
     struct [[eosio::table]] ram_cost {
       name account;
       uint16_t deposits;
+
+      uint64_t primary_key() const { return account.value; }
+    };
+
+    struct [[eosio::table]] registration_credit {
+      name account;
 
       uint64_t primary_key() const { return account.value; }
     };
@@ -161,9 +167,11 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
     > balances;
 
     typedef eosio::multi_index<"ramcosts"_n, ram_cost> ram_costs;
+    typedef eosio::multi_index<"regcredit"_n, registration_credit> registration_credits;
 
     typedef eosio::multi_index<"accounts"_n, account> accounts;
     typedef eosio::multi_index<"stat"_n, currency_stats> stats;
+
 
     [[eosio::action]]
     void regservice( name provider, vector<raw_token_service_stat> valid_tokens );

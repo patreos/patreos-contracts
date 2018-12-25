@@ -2,8 +2,8 @@
 #include <eosiolib/asset.hpp>
 #include <eosiolib/action.hpp>
 #include <eosiolib/multi_index.hpp>
-#include "recurringpay.hpp"
-#include "../common/messages.hpp"
+#include "include/recurringpay.hpp"
+#include "include/messages.hpp"
 
 using namespace eosio;
 
@@ -262,6 +262,8 @@ void recurringpay::transferAction( name self, name code ) {
       // TODO: return tokens?
       return;
     }
+
+    // TODO: give regcredit if memo format exists, and deposit is correct
 
     print(">>> self is: ", self); print("\n");
     print(">>> code is: ", code); print("\n");
