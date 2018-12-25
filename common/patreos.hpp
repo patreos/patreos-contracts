@@ -22,6 +22,7 @@ const eosio::name EOS_TOKEN_CODE = "eosio.token"_n;
 const eosio::name PATREOS_TOKEN_CODE = "patreostoken"_n;
 const eosio::name PATREOS_NEXUS_CODE = "patreosnexus"_n;
 const eosio::name PATREOS_VAULT_CODE = "patreosvault"_n;
+const eosio::name RECURRING_PAY_CODE = "recurringpay"_n;
 const eosio::name PATREOS_BLURB_CODE = "patreosblurb"_n;
 
 // actions
@@ -67,6 +68,9 @@ inline static bool is_supported_asset( const eosio::asset& asset ) {
 }
 
 inline static bool is_pledge_cycle_valid( uint32_t seconds ) {
+  if(seconds <= 0) {
+    return false;
+  }
   uint32_t days = seconds / SECONDS_IN_DAY;
   //return days == 30 || days == 7;
   return true;

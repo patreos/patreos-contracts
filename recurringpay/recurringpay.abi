@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Mon Dec 24 11:29:25 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Mon Dec 24 18:30:02 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -250,6 +250,10 @@
             "fields": [
                 {
                     "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "contract",
                     "type": "name"
                 },
                 {

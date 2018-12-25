@@ -13,12 +13,14 @@ using std::string;
 using std::vector;
 using namespace eosio;
 
-class [[eosio::contract("patreospayer")]] patreospayer : public contract {
+class [[eosio::contract("recurringpay")]] recurringpay : public contract {
 
   private:
 
     void sub_balance( name owner, name contract, asset quantity );
     void add_balance( name owner, name contract, asset quantity, name ram_payer );
+    void execute_subscription( name provider, name from, name to,
+      name contract, asset quantity, asset fee );
 
     // standard stats table
     struct currency_stats {
@@ -31,7 +33,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
 
   public:
 
-    patreospayer(name receiver, name code, datastream<const char*> ds) : contract(receiver, code, ds){}
+    recurringpay(name receiver, name code, datastream<const char*> ds) : contract(receiver, code, ds){}
 
     // concatenation of ids example
     uint128_t combine_ids(const uint64_t &x, const uint64_t &y) {
@@ -64,6 +66,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
     // Non-table form
     struct raw_token_service_stat {
       name token_contract;
+      //asset min_agreement_quantity;
       asset flat_fee;
       float percentage_fee;
     };
@@ -72,6 +75,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
     struct [[eosio::table]] token_service_stat {
       uint64_t id;
       name token_contract;
+      //asset min_agreement_quantity;
       asset flat_fee;
       float percentage_fee;
 
@@ -165,7 +169,7 @@ class [[eosio::contract("patreospayer")]] patreospayer : public contract {
     void regservice( name provider, vector<raw_token_service_stat> valid_tokens );
 
     [[eosio::action]]
-    void withdraw( name owner, asset quantity );
+    void withdraw( name owner, name contract, asset quantity );
 
     [[eosio::action]]
     void updatefee( name provider, name from, name to, asset fee );
