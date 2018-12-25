@@ -41,7 +41,7 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     void close( name owner, const symbol& symbol );
 
     [[eosio::action]]
-    void close_stake( name owner, const symbol& symbol );
+    void closestake( name owner, const symbol& symbol );
 
     static asset get_supply( name token_contract_account, symbol_code sym_code )
     {

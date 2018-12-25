@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Tue Dec 25 10:43:51 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Tue Dec 25 10:52:59 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -27,7 +27,7 @@
             ]
         },
         {
-            "name": "close_stake",
+            "name": "closestake",
             "base": "",
             "fields": [
                 {
@@ -181,8 +181,8 @@
             "ricardian_contract": ""
         },
         {
-            "name": "close_stake",
-            "type": "close_stake",
+            "name": "closestake",
+            "type": "closestake",
             "ricardian_contract": ""
         },
         {

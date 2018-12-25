@@ -23,7 +23,6 @@ void patreostoken::create( name issuer, asset maximum_supply )
     });
 }
 
-
 void patreostoken::issue( name to, asset quantity, string memo )
 {
     auto sym = quantity.symbol;
@@ -219,7 +218,7 @@ void patreostoken::close( name owner, const symbol& symbol )
    acnts.erase( it );
 }
 
-void patreostoken::close_stake( name owner, const symbol& symbol )
+void patreostoken::closestake( name owner, const symbol& symbol )
 {
    require_auth( owner );
    stakes stakes_table( _self, owner.value );
@@ -229,6 +228,4 @@ void patreostoken::close_stake( name owner, const symbol& symbol )
    stakes_table.erase( it );
 }
 
-
-
-EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(retire)(stake)(unstake) )
+EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(closestake)(retire)(stake)(unstake) )
