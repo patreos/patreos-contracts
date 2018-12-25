@@ -116,6 +116,17 @@ void patreostoken::sub_balance( name owner, asset value ) {
    });
 }
 
+void patreostoken::sub_stake( name owner, asset value ) {
+   stakes from_stakes( _self, owner.value );
+
+   const auto& from = from_stakes.get( value.symbol.code().raw(), Messages::NO_BALANCE_OBJECT );
+   eosio_assert( from.balance.amount >= value.amount, Messages::OVERDRAWN_BALANCE );
+
+   from_stakes.modify( from, owner, [&]( auto& a ) {
+     a.balance -= value;
+   });
+}
+
 void patreostoken::add_balance( name owner, asset value, name ram_payer )
 {
    accounts to_acnts( _self, owner.value );
@@ -129,6 +140,54 @@ void patreostoken::add_balance( name owner, asset value, name ram_payer )
         a.balance += value;
       });
    }
+}
+
+void patreostoken::add_stake( name owner, asset value, name ram_payer )
+{
+   stakes to_stakes( _self, owner.value );
+   auto to = to_stakes.find( value.symbol.code().raw() );
+   if( to == to_stakes.end() ) {
+      to_stakes.emplace( ram_payer, [&]( auto& a ){
+        a.balance = value;
+      });
+   } else {
+      to_stakes.modify( to, same_payer, [&]( auto& a ) {
+        a.balance += value;
+      });
+   }
+}
+
+void patreostoken::stake( name account, asset quantity )
+{
+    require_auth( account );
+    auto sym = quantity.symbol;
+    stats statstable( _self, sym.code().raw() );
+    const auto& st = statstable.get( sym.code().raw(), Messages::TOKEN_DNE_YET );
+
+    eosio_assert( quantity.is_valid(), "invalid quantity" );
+    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
+    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+
+    sub_balance( account, quantity );
+    add_stake( account, quantity, account );
+}
+
+// Will have a cooldown period, reclaim tokens n hours after unstaked
+void patreostoken::unstake( name account, asset quantity )
+{
+    require_auth( account );
+    auto sym = quantity.symbol;
+    stats statstable( _self, sym.code().raw() );
+    const auto& st = statstable.get( sym.code().raw(), Messages::TOKEN_DNE_YET );
+
+    require_recipient( account );
+
+    eosio_assert( quantity.is_valid(), "invalid quantity" );
+    eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
+    eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
+
+    sub_stake( account, quantity );
+    add_balance( account, quantity, account );
 }
 
 void patreostoken::open( name owner, const symbol& symbol, name ram_payer )
@@ -160,6 +219,16 @@ void patreostoken::close( name owner, const symbol& symbol )
    acnts.erase( it );
 }
 
+void patreostoken::close_stake( name owner, const symbol& symbol )
+{
+   require_auth( owner );
+   stakes stakes_table( _self, owner.value );
+   auto it = stakes_table.find( symbol.code().raw() );
+   eosio_assert( it != stakes_table.end(), Messages::CLOSE_BALANCE_NO_EFFECT );
+   eosio_assert( it->balance.amount == 0, Messages::CLOSE_BALANCE_NONZERO );
+   stakes_table.erase( it );
+}
 
 
-EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(retire) )
+
+EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(retire)(stake)(unstake) )

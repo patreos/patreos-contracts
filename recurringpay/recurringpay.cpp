@@ -255,6 +255,11 @@ void recurringpay::unsubscribe( name provider, name from, name to ) {
   eosio_assert(agreement_itr == agreements_table_secondary.end(), "Agreement should have unique entry!");
 }
 
+void recurringpay::alert( name to, string memo ) {
+  eosio_assert( is_account( to ), Messages::TO_ACCCOUNT_DNE );
+  require_recipient( to );
+}
+
 void recurringpay::transferAction( name self, name code ) {
     auto data = unpack_action_data<transfer>();
     if(data.from.value == self.value || data.to.value != self.value) {

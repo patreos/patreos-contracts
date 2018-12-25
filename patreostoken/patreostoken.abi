@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Mon Dec 24 18:29:43 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Tue Dec 25 10:43:51 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -14,6 +14,20 @@
         },
         {
             "name": "close",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "symbol",
+                    "type": "symbol"
+                }
+            ]
+        },
+        {
+            "name": "close_stake",
             "base": "",
             "fields": [
                 {
@@ -109,6 +123,20 @@
             ]
         },
         {
+            "name": "stake",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "transfer",
             "base": "",
             "fields": [
@@ -129,6 +157,20 @@
                     "type": "string"
                 }
             ]
+        },
+        {
+            "name": "unstake",
+            "base": "",
+            "fields": [
+                {
+                    "name": "account",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
         }
     ],
     "types": [],
@@ -136,6 +178,11 @@
         {
             "name": "close",
             "type": "close",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "close_stake",
+            "type": "close_stake",
             "ricardian_contract": ""
         },
         {
@@ -159,8 +206,18 @@
             "ricardian_contract": ""
         },
         {
+            "name": "stake",
+            "type": "stake",
+            "ricardian_contract": ""
+        },
+        {
             "name": "transfer",
             "type": "transfer",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unstake",
+            "type": "unstake",
             "ricardian_contract": ""
         }
     ],

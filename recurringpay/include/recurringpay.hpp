@@ -22,6 +22,8 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
     void execute_subscription( name provider, name from, name to,
       name contract, asset quantity, asset fee );
 
+    void alert( name to, string memo );
+
     // standard stats table
     struct currency_stats {
       asset    supply;
