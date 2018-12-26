@@ -98,7 +98,7 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
       name from;
       name to;
       raw_token_profile token_profile_amount;
-      uint32_t cycle;
+      uint32_t cycle_seconds;
     };
 
     // subscription agreement
@@ -107,7 +107,7 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
       name from;
       name to;
       raw_token_profile token_profile_amount;
-      uint32_t cycle;
+      uint32_t cycle_seconds;
       uint64_t last_executed;
       uint16_t execution_count;
       asset fee;
@@ -194,11 +194,4 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
     void process( name provider, name from, name to );
 
     void transferAction( name self, name code );
-
-    static asset get_balance( name token_contract_account, name owner, symbol_code sym_code )
-    {
-      accounts accountstable( token_contract_account, owner.value );
-      const auto& ac = accountstable.get( sym_code.raw() );
-      return ac.balance;
-    }
 };

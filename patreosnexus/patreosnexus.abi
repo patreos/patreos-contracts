@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Tue Dec 25 10:53:03 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Dec 26 15:23:56 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -9,6 +9,24 @@
                 {
                     "name": "balance",
                     "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "blurb",
+            "base": "",
+            "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                },
+                {
+                    "name": "memo",
+                    "type": "string"
                 }
             ]
         },
@@ -27,7 +45,7 @@
             ]
         },
         {
-            "name": "paid",
+            "name": "pledge",
             "base": "",
             "fields": [
                 {
@@ -37,46 +55,6 @@
                 {
                     "name": "to",
                     "type": "name"
-                }
-            ]
-        },
-        {
-            "name": "pledge",
-            "base": "",
-            "fields": [
-                {
-                    "name": "pledger",
-                    "type": "name"
-                },
-                {
-                    "name": "_pledge",
-                    "type": "pledge_data"
-                }
-            ]
-        },
-        {
-            "name": "pledge_data",
-            "base": "",
-            "fields": [
-                {
-                    "name": "creator",
-                    "type": "name"
-                },
-                {
-                    "name": "quantity",
-                    "type": "asset"
-                },
-                {
-                    "name": "seconds",
-                    "type": "uint32"
-                },
-                {
-                    "name": "last_pledge",
-                    "type": "uint64"
-                },
-                {
-                    "name": "execution_count",
-                    "type": "uint16"
                 }
             ]
         },
@@ -167,11 +145,11 @@
             "base": "",
             "fields": [
                 {
-                    "name": "pledger",
+                    "name": "from",
                     "type": "name"
                 },
                 {
-                    "name": "creator",
+                    "name": "to",
                     "type": "name"
                 }
             ]
@@ -190,13 +168,13 @@
     "types": [],
     "actions": [
         {
-            "name": "follow",
-            "type": "follow",
+            "name": "blurb",
+            "type": "blurb",
             "ricardian_contract": ""
         },
         {
-            "name": "paid",
-            "type": "paid",
+            "name": "follow",
+            "type": "follow",
             "ricardian_contract": ""
         },
         {
@@ -234,13 +212,6 @@
         {
             "name": "accounts",
             "type": "account",
-            "index_type": "i64",
-            "key_names": [],
-            "key_types": []
-        },
-        {
-            "name": "pledges",
-            "type": "pledge_data",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

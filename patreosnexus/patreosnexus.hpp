@@ -34,14 +34,17 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       EOSLIB_SERIALIZE( publication, (item)(title)(description)(url) )
     };
 
-    struct [[eosio::table]] pledge_data {
-      name        creator;
-      asset       quantity;
-      uint32_t    seconds;
-      uint64_t    last_pledge; // now()
-      uint16_t    execution_count;
+    struct raw_token_profile {
+      name contract;
+      asset quantity;
+    };
 
-      uint64_t primary_key() const { return creator.value; }
+    // proto subscription agreement
+    struct raw_agreement {
+      name from;
+      name to;
+      raw_token_profile token_profile_amount;
+      uint32_t cycle_seconds;
     };
 
   private:
@@ -61,9 +64,10 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       uint64_t primary_key() const { return balance.symbol.code().raw(); }
     };
 
-    typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
+    //typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
     typedef eosio::multi_index<"profiles"_n, profile> profiles; // user pays ram
     typedef eosio::multi_index<"publications"_n, publication> publications; // we pay ram, remove after processed
+
     typedef eosio::multi_index< "usage"_n, account > usage; //we pay ram
 
     typedef eosio::multi_index< "accounts"_n, account > accounts;
@@ -80,13 +84,10 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
     void unfollow( name owner, name following );
 
     [[eosio::action]]
-    void pledge( name pledger, pledge_data _pledge );
+    void pledge( name from, name to );
 
     [[eosio::action]]
-    void paid( name from, name to );
-
-    [[eosio::action]]
-    void unpledge( name pledger, name creator  );
+    void unpledge( name from, name to );
 
     [[eosio::action]]
     void setprofile( name owner, profile _profile );
@@ -96,5 +97,8 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
 
     [[eosio::action]]
     void publish( name owner, publication _publication );
+    
+    [[eosio::action]]
+    void blurb( name from, name to, string memo );
 
 };

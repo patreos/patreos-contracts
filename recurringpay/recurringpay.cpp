@@ -12,47 +12,41 @@ void recurringpay::add_balance( name owner, name contract, asset quantity, name 
 {
    print(" Token contract is ", contract);
    print(" Adding balance to ", owner); print("\n");
-   balances vault_balances( _self, owner.value );
-   auto vault_balances_secondary = vault_balances.get_index<"code.symbol"_n>();
+   balances balances_table( _self, owner.value );
+   auto balances_table_secondary = balances_table.get_index<"code.symbol"_n>();
    auto token_contract_id = combine_ids(contract.value, quantity.symbol.code().raw());
-
+   print(" token_contract_id is: ", token_contract_id);
    eosio_assert(quantity.amount > 0, "Quantity cannot be negative");
 
-   auto to = vault_balances_secondary.find( token_contract_id );
-   if( to == vault_balances_secondary.end() ) {
-      vault_balances.emplace( ram_payer, [&]( auto& a ){
-        a.id = vault_balances.available_primary_key();
+   auto to = balances_table_secondary.find( token_contract_id );
+   if( to == balances_table_secondary.end() ) {
+      balances_table.emplace( ram_payer, [&]( auto& a ){
+        a.id = balances_table.available_primary_key();
         a.contract = contract;
         a.quantity = quantity;
       });
    } else {
-      vault_balances_secondary.modify( to, same_payer, [&]( auto& a ) {
+      balances_table_secondary.modify( to, same_payer, [&]( auto& a ) {
         a.quantity += quantity;
       });
-
-      // Verify index uniqueness after finished with itr
-      eosio_assert(++to == vault_balances_secondary.end(), "Accounts should have unique token profiles!");
    }
 }
 
 void recurringpay::sub_balance( name owner, name contract, asset quantity ) {
    print(" Token contract is ", contract);
    print(" Subtracting balance from ", owner); print("\n");
-   balances vault_balances( _self, owner.value );
-   auto vault_balances_secondary = vault_balances.get_index<"code.symbol"_n>();
+   balances balances_table( _self, owner.value );
+   auto balances_table_secondary = balances_table.get_index<"code.symbol"_n>();
 
    auto token_contract_id = combine_ids(contract.value, quantity.symbol.code().raw());
-   auto from = vault_balances_secondary.find( token_contract_id );
-   eosio_assert(from != vault_balances_secondary.end(), Messages::NO_BALANCE_OBJECT);
+   auto from = balances_table_secondary.find( token_contract_id );
+   eosio_assert(from != balances_table_secondary.end(), Messages::NO_BALANCE_OBJECT);
    eosio_assert(quantity.amount > 0, "Quantity cannot be negative");
    eosio_assert( from->quantity.amount >= quantity.amount, Messages::OVERDRAWN_BALANCE );
 
-   vault_balances_secondary.modify( from, owner, [&]( auto& a ) {
+   balances_table_secondary.modify( from, owner, [&]( auto& a ) {
      a.quantity -= quantity;
    });
-
-   // Verify index uniqueness after finished with itr
-   eosio_assert(++from == vault_balances_secondary.end(), "Accounts should have unique token profiles!");
 }
 
 void recurringpay::execute_subscription( name provider, name from, name to,
@@ -158,9 +152,6 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
   print("final fee is: ", final_fee); print("\n");
   eosio_assert( final_fee <= agreement.token_profile_amount.quantity, "Percentage fee cannot be more than subscription amount");
 
-  // After fee logic, verify token_service_stat is unique
-  eosio_assert(++token_service_stat_itr == services_table_secondary.end(), "Service provider should have unique token profiles!");
-
   // Verify agreement doesn't already exist
   agreements agreements_table( _self, provider.value );
   auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
@@ -169,7 +160,7 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
   auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
   eosio_assert(agreement_itr == agreements_table_secondary.end(), "Agreement already exists!");
 
-  eosio_assert(is_pledge_cycle_valid(agreement.cycle), "Subscription cycle not valid!");
+  eosio_assert(is_pledge_cycle_valid(agreement.cycle_seconds), "Subscription cycle not valid!");
 
   // TODO: CHECK QUANITTY VALID, AMOUNT POSITIVE, etc
 
@@ -191,7 +182,7 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
     a.to = agreement.to;
     a.token_profile_amount.contract = agreement.token_profile_amount.contract;
     a.token_profile_amount.quantity = agreement.token_profile_amount.quantity;
-    a.cycle = agreement.cycle;
+    a.cycle_seconds = agreement.cycle_seconds;
     a.last_executed = now();
     a.execution_count = 1;
     a.fee = final_fee;
@@ -210,15 +201,15 @@ void recurringpay::process( name provider, name from, name to ) {
   uint64_t date_in_seconds = now();
   print("Now is ", date_in_seconds); print("\n");
   print("Last executed is ", agreement_itr->last_executed); print("\n");
-  print("Cycle is ", agreement_itr->cycle); print("\n");
+  print("Cycle is ", agreement_itr->cycle_seconds); print("\n");
 
   eosio_assert(agreement_itr != agreements_table_secondary.end(), "Agreement does not exists!");
 
-  eosio_assert(agreement_itr->cycle > 0, "Invalid cycle!"); // Don't break math
+  eosio_assert(agreement_itr->cycle_seconds > 0, "Invalid cycle!"); // Don't break math
   eosio_assert(agreement_itr->last_executed <= date_in_seconds, "Invalid last execution date!"); // No time travel allowed
   eosio_assert(agreement_itr->last_executed > 1545699988, "Invalid last execution date!"); // Again, no time travelling
 
-  uint64_t payments_due = ( date_in_seconds - agreement_itr->last_executed ) / agreement_itr->cycle;
+  uint64_t payments_due = ( date_in_seconds - agreement_itr->last_executed ) / agreement_itr->cycle_seconds;
 
   // TODO: execute subscriptions based on number of payments due
   eosio_assert(payments_due > 1, "Subscription is not due");
@@ -252,7 +243,6 @@ void recurringpay::unsubscribe( name provider, name from, name to ) {
   auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
   eosio_assert(agreement_itr != agreements_table_secondary.end(), "Agreement does not exist!");
   agreement_itr = agreements_table_secondary.erase(agreement_itr);
-  eosio_assert(agreement_itr == agreements_table_secondary.end(), "Agreement should have unique entry!");
 }
 
 void recurringpay::alert( name to, string memo ) {
@@ -296,12 +286,12 @@ void recurringpay::transferAction( name self, name code ) {
 void recurringpay::withdraw( name owner, name contract, asset quantity ) {
   require_auth( owner );
 
-  balances vault_balances( _self, owner.value );
-  auto vault_balances_secondary = vault_balances.get_index<"code.symbol"_n>();
+  balances balances_table( _self, owner.value );
+  auto balances_table_secondary = balances_table.get_index<"code.symbol"_n>();
   auto token_contract_id = combine_ids(contract.value, quantity.symbol.code().raw());
 
-  auto from = vault_balances_secondary.find( token_contract_id );
-  eosio_assert(from != vault_balances_secondary.end(), "No balance found!");
+  auto from = balances_table_secondary.find( token_contract_id );
+  eosio_assert(from != balances_table_secondary.end(), "No balance found!");
 
   eosio_assert( from->quantity >= quantity, Messages::OVERDRAWN_BALANCE );
   eosio_assert( quantity.is_valid(), Messages::INVALID_QUANTITY );
@@ -314,13 +304,11 @@ void recurringpay::withdraw( name owner, name contract, asset quantity ) {
 
   sub_balance(owner, contract, quantity);
 
-  // TODO: Check contract for our actual balance, if not found then remove from our vault_balances
+  // TODO: Check contract for our actual balance, if not found then remove from our balances_table
 
   action(permission_level{ RECURRING_PAY_CODE, EOS_ACTIVE_PERMISSION },
       contract, EOS_TRANSFER_ACTION,
       std::make_tuple(_self, owner, quantity, std::string("Here's your money back"))).send();
-
-  eosio_assert(++from == vault_balances_secondary.end(), "Accounts should have unique token profiles!");
 }
 
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {

@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Tue Dec 25 10:53:17 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Dec 26 15:24:10 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -33,7 +33,7 @@
                     "type": "raw_token_profile"
                 },
                 {
-                    "name": "cycle",
+                    "name": "cycle_seconds",
                     "type": "uint32"
                 },
                 {
@@ -99,7 +99,7 @@
                     "type": "raw_token_profile"
                 },
                 {
-                    "name": "cycle",
+                    "name": "cycle_seconds",
                     "type": "uint32"
                 }
             ]
