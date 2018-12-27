@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Dec 26 15:24:10 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Dec 26 21:44:49 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -9,6 +9,20 @@
                 {
                     "name": "balance",
                     "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "addtokens",
+            "base": "",
+            "fields": [
+                {
+                    "name": "provider",
+                    "type": "name"
+                },
+                {
+                    "name": "valid_tokens",
+                    "type": "raw_token_service_stat[]"
                 }
             ]
         },
@@ -137,26 +151,16 @@
             ]
         },
         {
-            "name": "registration_credit",
+            "name": "service",
             "base": "",
             "fields": [
                 {
                     "name": "account",
                     "type": "name"
-                }
-            ]
-        },
-        {
-            "name": "regservice",
-            "base": "",
-            "fields": [
-                {
-                    "name": "provider",
-                    "type": "name"
                 },
                 {
-                    "name": "valid_tokens",
-                    "type": "raw_token_service_stat[]"
+                    "name": "description",
+                    "type": "string"
                 }
             ]
         },
@@ -276,13 +280,13 @@
     "types": [],
     "actions": [
         {
-            "name": "process",
-            "type": "process",
+            "name": "addtokens",
+            "type": "addtokens",
             "ricardian_contract": ""
         },
         {
-            "name": "regservice",
-            "type": "regservice",
+            "name": "process",
+            "type": "process",
             "ricardian_contract": ""
         },
         {
@@ -336,14 +340,14 @@
             "key_types": []
         },
         {
-            "name": "regcredit",
-            "type": "registration_credit",
+            "name": "services",
+            "type": "service",
             "index_type": "i64",
             "key_names": [],
             "key_types": []
         },
         {
-            "name": "services",
+            "name": "validtokens",
             "type": "token_service_stat",
             "index_type": "i64",
             "key_names": [],

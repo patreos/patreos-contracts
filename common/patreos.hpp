@@ -57,6 +57,11 @@ const eosio::asset min_pledge_ptr = eosio::asset(
   PTR_SYMBOL
 );
 
+const eosio::asset require_stake_per_pledge = eosio::asset(
+  (uint64_t) ( std::pow(10, EOS_PRECISION) * 1 ),
+  PTR_SYMBOL
+);
+
 inline static bool is_supported_asset( const eosio::asset& asset ) {
   if(asset.symbol == EOS_SYMBOL) {
     return true;

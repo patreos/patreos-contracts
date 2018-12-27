@@ -15,20 +15,51 @@ void patreosnexus::unfollow( name owner, name following )
   require_recipient( following ); // Notify on unfollow?
 }
 
+/*
+void patreosnexus::checkfees( name from, name to ) {
+
+}
+*/
+
 void patreosnexus::pledge( name from, name to )
 {
   require_auth(from);
   eosio_assert( is_account( to ), Messages::CREATOR_ACCOUNT_DNE );
 
-  // TODO: if already registered pledge, error
+  pledges pledges_table(_self, _self.value);
+  auto pledges_table_secondary = pledges_table.get_index<"from.to"_n>();
+  auto pledge_by_parties_id = combine_ids(from.value, to.value);
 
-  // TODO: Verify subscription in recurringpay table of patreosnexus
+  auto pledges_table_secondary_itr = pledges_table_secondary.find( pledge_by_parties_id );
+  eosio_assert(pledges_table_secondary_itr == pledges_table_secondary.end(), "Pledge already exists!");
 
-  // TODO: register pledge in table
+  // TODO: Decide on official account
+  name patreos_service_account = "xokayplanetx"_n;
 
-  // TODO: If stake is sufficient, and pledge executed once, refund executed fee
+  agreements agreements_table( "recurringpay"_n, patreos_service_account.value );
+  auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
+  auto agreement_itr = agreements_table_secondary.find( pledge_by_parties_id );
+  eosio_assert(agreement_itr != agreements_table_secondary.end(), "Subscription agreement should exist beforehand!");
 
-  // TODO: If stake is sufficient, wave future fees (probably a helper)
+  pledges_table.emplace( from, [&]( auto& p ){
+    p.key = pledges_table.available_primary_key();
+    p.from = from;
+    p.to = to;
+  });
+
+  stakes from_stakes( "patreostoken"_n, from.value );
+  auto from_stakes_itr = from_stakes.find( PTR_SYMBOL.code().raw() );
+  if(from_stakes_itr != from_stakes.end()) {
+    // No fees for sufficient stake
+    if(from_stakes_itr->balance >= require_stake_per_pledge) {
+      if(agreement_itr->execution_count == 1) {
+        print(" Refunding fee, and waving future fees");
+        // TODO: refund executed fee (peer review first)
+
+        // TODO: If stake is sufficient, wave future fees (probably a helper)
+      }
+    }
+  }
 }
 
 void patreosnexus::unpledge( name from, name to )
@@ -36,11 +67,19 @@ void patreosnexus::unpledge( name from, name to )
   require_auth(from);
   eosio_assert( is_account( to ), Messages::CREATOR_ACCOUNT_DNE );
 
-  // TODO: verify registered pledge in table
+  pledges pledges_table(_self, _self.value);
+  auto pledges_table_secondary = pledges_table.get_index<"from.to"_n>();
+  auto pledge_by_parties_id = combine_ids(from.value, to.value);
 
-  // TODO: Verify no subscription in recurringpay table of patreosnexus
+  auto pledges_table_secondary_itr = pledges_table_secondary.find( pledge_by_parties_id );
+  eosio_assert(pledges_table_secondary_itr != pledges_table_secondary.end(), "Pledge does not exist!");
 
-  // TODO: unregister pledge
+  agreements agreements_table( "recurringpay"_n, "patreosnexus"_n.value );
+  auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
+  auto agreement_itr = agreements_table_secondary.find( pledge_by_parties_id );
+  eosio_assert(agreement_itr == agreements_table_secondary.end(), "Subscription agreement should first be canceled!");
+
+  pledges_table_secondary.erase( pledges_table_secondary_itr );
 }
 
 void patreosnexus::setprofile( name owner, patreosnexus::profile _profile )

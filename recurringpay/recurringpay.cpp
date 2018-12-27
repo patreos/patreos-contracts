@@ -32,6 +32,23 @@ void recurringpay::add_balance( name owner, name contract, asset quantity, name 
    }
 }
 
+void recurringpay::sub_balance_keep_same_payer( name owner, name contract, asset quantity ) {
+   print(" Token contract is ", contract);
+   print(" Subtracting balance from ", owner); print("\n");
+   balances balances_table( _self, owner.value );
+   auto balances_table_secondary = balances_table.get_index<"code.symbol"_n>();
+
+   auto token_contract_id = combine_ids(contract.value, quantity.symbol.code().raw());
+   auto from = balances_table_secondary.find( token_contract_id );
+   eosio_assert(from != balances_table_secondary.end(), Messages::NO_BALANCE_OBJECT);
+   eosio_assert(quantity.amount > 0, "Quantity cannot be negative");
+   eosio_assert( from->quantity.amount >= quantity.amount, Messages::OVERDRAWN_BALANCE );
+
+   balances_table_secondary.modify( from, same_payer, [&]( auto& a ) {
+     a.quantity -= quantity;
+   });
+}
+
 void recurringpay::sub_balance( name owner, name contract, asset quantity ) {
    print(" Token contract is ", contract);
    print(" Subtracting balance from ", owner); print("\n");
@@ -72,27 +89,33 @@ void recurringpay::execute_subscription( name provider, name from, name to,
   );
 }
 
-void recurringpay::regservice( name provider, vector<raw_token_service_stat> valid_tokens )
+void recurringpay::addtokens( name provider, vector<raw_token_service_stat> valid_tokens )
 {
    require_auth( provider );
 
+   services services_table( _self, _self.value );
+   auto services_table_itr = services_table.find(provider.value);
+   eosio_assert( services_table_itr != services_table.end(), "Service must first register" );
+
+   // Change ram ownership of service entry
+
    print("Registering Subscription Service Provider ", provider); print("\n");
-   services services_table( _self, provider.value );
-   auto services_table_secondary = services_table.get_index<"code.symbol"_n>();
+   validtokens validtokens_table( _self, provider.value );
+   auto validtokens_table_secondary = validtokens_table.get_index<"code.symbol"_n>();
 
    // Check that token profiles are unique
    for(auto it = valid_tokens.begin(); it != valid_tokens.end(); it++ ) {
      uint64_t token_contract_id = it->token_contract.value;
      uint64_t token_symbol_id = it->flat_fee.symbol.code().raw();
      uint128_t code_and_symbol_id = combine_ids(token_contract_id, token_symbol_id);
-     auto token_service_stat_itr = services_table_secondary.find( code_and_symbol_id );
-     if(token_service_stat_itr != services_table_secondary.end()) {
+     auto token_service_stat_itr = validtokens_table_secondary.find( code_and_symbol_id );
+     if(token_service_stat_itr != validtokens_table_secondary.end()) {
        print("Service provider already accepts this token.  Skipping.\n");
        continue;
      }
 
-     services_table.emplace( provider, [&]( auto& s ){
-       s.id = services_table.available_primary_key();
+     validtokens_table.emplace( provider, [&]( auto& s ){
+       s.id = validtokens_table.available_primary_key();
        s.token_contract = it->token_contract;
        s.flat_fee = it->flat_fee;
        s.percentage_fee = it->percentage_fee;
@@ -128,11 +151,11 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
   uint128_t code_and_symbol_id = combine_ids(token_contract_id, token_symbol_id);
 
   // Secondary index search
-  services services_table( _self, provider.value );
-  auto services_table_secondary = services_table.get_index<"code.symbol"_n>();
-  auto token_service_stat_itr = services_table_secondary.find( code_and_symbol_id );
+  validtokens validtokens_table( _self, provider.value );
+  auto validtokens_table_secondary = validtokens_table.get_index<"code.symbol"_n>();
+  auto token_service_stat_itr = validtokens_table_secondary.find( code_and_symbol_id );
 
-  eosio_assert(token_service_stat_itr != services_table_secondary.end(), "Service provider doesn't accept this token");
+  eosio_assert(token_service_stat_itr != validtokens_table_secondary.end(), "Service provider doesn't accept this token");
 
   // TODO: Check provider token symbol == flat_fee symbol == subscription symbol
 
@@ -250,6 +273,26 @@ void recurringpay::alert( name to, string memo ) {
   require_recipient( to );
 }
 
+void recurringpay::regservice( name provider, string description, name code, asset quantity) {
+  if(code != EOS_TOKEN_CODE || quantity < reg_cost || quantity.symbol != EOS_SYMBOL) {
+    return;
+  }
+
+  services services_table( _self, _self.value );
+  auto services_table_itr = services_table.find(provider.value);
+  eosio_assert( services_table_itr == services_table.end(), "Service already registered!" );
+
+  services_table.emplace( _self, [&]( auto& s ){
+    s.account = provider;
+    s.description = description;
+  });
+
+  sub_balance_keep_same_payer(provider, code, reg_cost); // no permissions to change ram owner here
+  eosio_assert( is_account( COLLECTION_ACCOUNT ), Messages::TO_ACCCOUNT_DNE );
+  add_balance(COLLECTION_ACCOUNT, code, reg_cost, _self); // fees to ram and dev
+  require_recipient( COLLECTION_ACCOUNT );
+}
+
 void recurringpay::transferAction( name self, name code ) {
     auto data = unpack_action_data<transfer>();
     if(data.from.value == self.value || data.to.value != self.value) {
@@ -257,8 +300,6 @@ void recurringpay::transferAction( name self, name code ) {
       // TODO: return tokens?
       return;
     }
-
-    // TODO: give regcredit if memo format exists, and deposit is correct
 
     print(">>> self is: ", self); print("\n");
     print(">>> code is: ", code); print("\n");
@@ -269,6 +310,7 @@ void recurringpay::transferAction( name self, name code ) {
 
     eosio_assert(data.quantity.is_valid(), Messages::INVALID_QUANTITY);
     eosio_assert(data.quantity.amount > 0, Messages::NEED_POSITIVE_TRANSFER_AMOUNT);
+    eosio_assert(data.memo.size() <= 256, Messages::MEMO_TOO_LONG );
 
     // Reference contract token stats
     auto sym = data.quantity.symbol.code().raw();
@@ -280,6 +322,13 @@ void recurringpay::transferAction( name self, name code ) {
 
     // TODO: Check contract for our actual balance, if not found then do not add
     add_balance(data.from, code, data.quantity, _self);
+
+    // Register service.
+    // small one-time registration fee to discourage junk token services from spammers
+    if(data.memo.find("regservice|") == 0) {
+      std::string description = data.memo.substr(data.memo.find("|") + 1);
+      regservice(data.from, description, code, data.quantity);
+    }
 }
 
 
@@ -314,7 +363,7 @@ void recurringpay::withdraw( name owner, name contract, asset quantity ) {
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
     if (code == receiver) { // Calling our contract actions
       switch (action) {
-        EOSIO_DISPATCH_HELPER(recurringpay, (regservice)(withdraw)(updatefee)(subscribe)(unsubscribe)(process))
+        EOSIO_DISPATCH_HELPER(recurringpay, (addtokens)(withdraw)(updatefee)(subscribe)(unsubscribe)(process))
       }
       /* does not allow destructor of thiscontract to run: eosio_exit(0); */
     } else if(action == EOS_TRANSFER_ACTION.value) { // External transfer to recurringpay

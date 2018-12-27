@@ -15,6 +15,7 @@ const eosio::symbol EOS_SYMBOL = eosio::symbol("EOS", EOS_PRECISION);
 // Contracts
 const eosio::name EOS_TOKEN_CODE = "eosio.token"_n;
 const eosio::name RECURRING_PAY_CODE = "recurringpay"_n;
+const eosio::name COLLECTION_ACCOUNT = "recurringpay"_n;
 
 // Actions
 const eosio::name EOS_TRANSFER_ACTION = "transfer"_n;

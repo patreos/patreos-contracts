@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Dec 26 15:23:56 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Dec 26 21:44:34 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -8,6 +8,44 @@
             "fields": [
                 {
                     "name": "balance",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
+            "name": "agreement",
+            "base": "",
+            "fields": [
+                {
+                    "name": "id",
+                    "type": "uint64"
+                },
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                },
+                {
+                    "name": "token_profile_amount",
+                    "type": "raw_token_profile"
+                },
+                {
+                    "name": "cycle_seconds",
+                    "type": "uint32"
+                },
+                {
+                    "name": "last_executed",
+                    "type": "uint64"
+                },
+                {
+                    "name": "execution_count",
+                    "type": "uint16"
+                },
+                {
+                    "name": "fee",
                     "type": "asset"
                 }
             ]
@@ -48,6 +86,24 @@
             "name": "pledge",
             "base": "",
             "fields": [
+                {
+                    "name": "from",
+                    "type": "name"
+                },
+                {
+                    "name": "to",
+                    "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "pledge_item",
+            "base": "",
+            "fields": [
+                {
+                    "name": "key",
+                    "type": "uint64"
+                },
                 {
                     "name": "from",
                     "type": "name"
@@ -113,6 +169,20 @@
             ]
         },
         {
+            "name": "raw_token_profile",
+            "base": "",
+            "fields": [
+                {
+                    "name": "contract",
+                    "type": "name"
+                },
+                {
+                    "name": "quantity",
+                    "type": "asset"
+                }
+            ]
+        },
+        {
             "name": "setprofile",
             "base": "",
             "fields": [
@@ -161,6 +231,36 @@
                 {
                     "name": "owner",
                     "type": "name"
+                }
+            ]
+        },
+        {
+            "name": "usage_stats",
+            "base": "",
+            "fields": [
+                {
+                    "name": "owner",
+                    "type": "name"
+                },
+                {
+                    "name": "pledged",
+                    "type": "uint64"
+                },
+                {
+                    "name": "unpledged",
+                    "type": "uint64"
+                },
+                {
+                    "name": "followed",
+                    "type": "uint64"
+                },
+                {
+                    "name": "unfollowed",
+                    "type": "uint64"
+                },
+                {
+                    "name": "published",
+                    "type": "uint64"
                 }
             ]
         }
@@ -217,6 +317,20 @@
             "key_types": []
         },
         {
+            "name": "agreements",
+            "type": "agreement",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "pledges",
+            "type": "pledge_item",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
             "name": "profiles",
             "type": "profile",
             "index_type": "i64",
@@ -231,8 +345,15 @@
             "key_types": []
         },
         {
-            "name": "usage",
+            "name": "stakes",
             "type": "account",
+            "index_type": "i64",
+            "key_names": [],
+            "key_types": []
+        },
+        {
+            "name": "usage",
+            "type": "usage_stats",
             "index_type": "i64",
             "key_names": [],
             "key_types": []

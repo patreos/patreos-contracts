@@ -16,13 +16,14 @@ using namespace eosio;
 class [[eosio::contract("recurringpay")]] recurringpay : public contract {
 
   private:
-
     void sub_balance( name owner, name contract, asset quantity );
     void add_balance( name owner, name contract, asset quantity, name ram_payer );
     void execute_subscription( name provider, name from, name to,
       name contract, asset quantity, asset fee );
+    void sub_balance_keep_same_payer( name owner, name contract, asset quantity );
 
     void alert( name to, string memo );
+    void regservice( name provider, string description, name code, asset quantity );
 
     // standard stats table
     struct currency_stats {
@@ -49,8 +50,9 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
       uint64_t primary_key() const { return account.value; }
     };
 
-    struct [[eosio::table]] registration_credit {
+    struct [[eosio::table]] service {
       name account;
+      string description;
 
       uint64_t primary_key() const { return account.value; }
     };
@@ -154,12 +156,12 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
       >
     > agreements;
 
-    typedef multi_index<"services"_n, token_service_stat,
+    typedef multi_index<"validtokens"_n, token_service_stat,
       indexed_by<
         "code.symbol"_n,
         const_mem_fun <token_service_stat, uint128_t, &token_service_stat::get_by_code_and_symbol>
       >
-    > services;
+    > validtokens;
 
     typedef multi_index<"balances"_n, token_profile,
       indexed_by<
@@ -169,14 +171,14 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
     > balances;
 
     typedef eosio::multi_index<"ramcosts"_n, ram_cost> ram_costs;
-    typedef eosio::multi_index<"regcredit"_n, registration_credit> registration_credits;
+    typedef eosio::multi_index<"services"_n, service> services;
 
     typedef eosio::multi_index<"accounts"_n, account> accounts;
     typedef eosio::multi_index<"stat"_n, currency_stats> stats;
 
 
     [[eosio::action]]
-    void regservice( name provider, vector<raw_token_service_stat> valid_tokens );
+    void addtokens( name provider, vector<raw_token_service_stat> valid_tokens );
 
     [[eosio::action]]
     void withdraw( name owner, name contract, asset quantity );
