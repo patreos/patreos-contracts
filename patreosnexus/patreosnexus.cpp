@@ -34,7 +34,7 @@ void patreosnexus::pledge( name from, name to )
   eosio_assert(pledges_table_secondary_itr == pledges_table_secondary.end(), "Pledge already exists!");
 
   // TODO: Decide on official account
-  name patreos_service_account = "xokayplanetx"_n;
+  name patreos_service_account = "patreosnexus"_n;
 
   agreements agreements_table( "recurringpay"_n, patreos_service_account.value );
   auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
