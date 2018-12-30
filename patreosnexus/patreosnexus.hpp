@@ -87,6 +87,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       name to;
       raw_token_profile token_profile_amount;
       uint32_t cycle_seconds;
+      uint16_t pending_payments;
       uint64_t last_executed;
       uint16_t execution_count;
       asset fee;

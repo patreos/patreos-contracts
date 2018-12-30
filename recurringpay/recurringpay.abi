@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Thu Dec 27 13:49:36 2018",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sun Dec 30 13:30:47 2018",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -49,6 +49,10 @@
                 {
                     "name": "cycle_seconds",
                     "type": "uint32"
+                },
+                {
+                    "name": "pending_payments",
+                    "type": "uint16"
                 },
                 {
                     "name": "last_executed",
@@ -151,6 +155,20 @@
             ]
         },
         {
+            "name": "removetokens",
+            "base": "",
+            "fields": [
+                {
+                    "name": "provider",
+                    "type": "name"
+                },
+                {
+                    "name": "valid_tokens",
+                    "type": "raw_token_service_stat[]"
+                }
+            ]
+        },
+        {
             "name": "service",
             "base": "",
             "fields": [
@@ -215,6 +233,16 @@
                 {
                     "name": "percentage_fee",
                     "type": "float32"
+                }
+            ]
+        },
+        {
+            "name": "unregservice",
+            "base": "",
+            "fields": [
+                {
+                    "name": "provider",
+                    "type": "name"
                 }
             ]
         },
@@ -290,8 +318,18 @@
             "ricardian_contract": ""
         },
         {
+            "name": "removetokens",
+            "type": "removetokens",
+            "ricardian_contract": ""
+        },
+        {
             "name": "subscribe",
             "type": "subscribe",
+            "ricardian_contract": ""
+        },
+        {
+            "name": "unregservice",
+            "type": "unregservice",
             "ricardian_contract": ""
         },
         {

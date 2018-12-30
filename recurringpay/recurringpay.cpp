@@ -69,24 +69,10 @@ void recurringpay::sub_balance( name owner, name contract, asset quantity ) {
 void recurringpay::execute_subscription( name provider, name from, name to,
   name contract, asset quantity, asset fee )
 {
-  sub_balance(
-    from,
-    contract,
-    quantity
-  );
-  add_balance(
-    to,
-    contract,
-    quantity - fee,
-    _self
-  );
+  sub_balance( from, contract, quantity );
+  add_balance( to, contract, quantity - fee, _self );
   // Service provider gets fee
-  add_balance(
-    provider,
-    contract,
-    fee,
-    _self
-  );
+  add_balance( provider, contract, fee, _self );
 }
 
 void recurringpay::addtokens( name provider, vector<raw_token_service_stat> valid_tokens )
@@ -97,7 +83,7 @@ void recurringpay::addtokens( name provider, vector<raw_token_service_stat> vali
    auto services_table_itr = services_table.find(provider.value);
    eosio_assert( services_table_itr != services_table.end(), "Service must first register" );
 
-   // Change ram ownership of service entry
+   // TODO: Change ram ownership of service entry
 
    print("Registering Subscription Service Provider ", provider); print("\n");
    validtokens validtokens_table( _self, provider.value );
@@ -123,6 +109,11 @@ void recurringpay::addtokens( name provider, vector<raw_token_service_stat> vali
    }
 }
 
+void recurringpay::removetokens( name provider, vector<raw_token_service_stat> valid_tokens )
+{
+   require_auth( provider );
+}
+
 // Allow service provider to update subscription fees, increase at your own risk
 void recurringpay::updatefee( name provider, name from, name to, asset fee ) {
   require_auth( provider );
@@ -146,15 +137,18 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
   require_auth(agreement.from);
   eosio_assert( is_account( agreement.to ), "Receiving account does not exist" );
 
+  services services_table( _self, _self.value );
+  auto services_table_itr = services_table.find(provider.value);
+  eosio_assert( services_table_itr != services_table.end(), "Service provider does not exist!" );
+
   uint64_t token_contract_id = agreement.token_profile_amount.contract.value;
   uint64_t token_symbol_id = agreement.token_profile_amount.quantity.symbol.code().raw();
   uint128_t code_and_symbol_id = combine_ids(token_contract_id, token_symbol_id);
 
-  // Secondary index search
+  // Verify token is accepted
   validtokens validtokens_table( _self, provider.value );
   auto validtokens_table_secondary = validtokens_table.get_index<"code.symbol"_n>();
   auto token_service_stat_itr = validtokens_table_secondary.find( code_and_symbol_id );
-
   eosio_assert(token_service_stat_itr != validtokens_table_secondary.end(), "Service provider doesn't accept this token");
 
   // TODO: Check provider token symbol == flat_fee symbol == subscription symbol
@@ -178,7 +172,6 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
   // Verify agreement doesn't already exist
   agreements agreements_table( _self, provider.value );
   auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
-
   uint128_t party_agreement_id = combine_ids(agreement.from.value, agreement.to.value);
   auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
   eosio_assert(agreement_itr == agreements_table_secondary.end(), "Agreement already exists!");
@@ -189,6 +182,8 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
 
   print("Adding agreement with secondary key (from.to): ", party_agreement_id); print("\n");
   print("Adding agreement with secondary key: (from): ", agreement.from.value); print("\n");
+
+  // TODO: If from doesn't have funds, no subscription agreement.
 
   execute_subscription(
     provider,
@@ -206,6 +201,7 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
     a.token_profile_amount.contract = agreement.token_profile_amount.contract;
     a.token_profile_amount.quantity = agreement.token_profile_amount.quantity;
     a.cycle_seconds = agreement.cycle_seconds;
+    a.pending_payments = 0;
     a.last_executed = now();
     a.execution_count = 1;
     a.fee = final_fee;
@@ -231,13 +227,18 @@ void recurringpay::process( name provider, name from, name to ) {
   eosio_assert(agreement_itr->cycle_seconds > 0, "Invalid cycle!"); // Don't break math
   eosio_assert(agreement_itr->last_executed <= date_in_seconds, "Invalid last execution date!"); // No time travel allowed
   eosio_assert(agreement_itr->last_executed > 1545699988, "Invalid last execution date!"); // Again, no time travelling
+  eosio_assert(agreement_itr->pending_payments >= 0, "Invalid due payments!"); // Why would this ever happen?
 
   uint64_t payments_due = ( date_in_seconds - agreement_itr->last_executed ) / agreement_itr->cycle_seconds;
+  uint16_t pending_payments = agreement_itr->pending_payments;
 
-  // TODO: execute subscriptions based on number of payments due
-  eosio_assert(payments_due > 1, "Subscription is not due");
+  if(payments_due >= 1) {
+    pending_payments += payments_due; // Check for overflow
+  }
+  eosio_assert(pending_payments >= 1, "Subscription is not due");
+  print("Number of pending payments is: ", (uint64_t) pending_payments); print("\n");
 
-  print("Number of due payments is ", payments_due); print("\n");
+  // TODO: If from doesn't have funds, cancel subscription agreement.
 
   execute_subscription(
     provider,
@@ -249,28 +250,45 @@ void recurringpay::process( name provider, name from, name to ) {
   );
 
   agreements_table_secondary.modify( agreement_itr, same_payer, [&]( auto& s ) {
-    s.last_executed = date_in_seconds;
+    s.last_executed = date_in_seconds; // TODO: Check for overflow
     s.execution_count++;
+    s.pending_payments = --pending_payments;
   });
+
 }
 
 void recurringpay::unsubscribe( name provider, name from, name to ) {
   require_auth(from);
 
-  // TODO: Clear out pending subscriptions
-
   agreements agreements_table( _self, provider.value ); // table scoped by provider
   auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
+
+  // We don't check if service provider exists, only if subscription exists.
 
   uint128_t party_agreement_id = combine_ids(from.value, to.value);
   auto agreement_itr = agreements_table_secondary.find( party_agreement_id );
   eosio_assert(agreement_itr != agreements_table_secondary.end(), "Agreement does not exist!");
+
+  // Make sure no subscription payments are due.  User can process them if unclaimed.
+  uint64_t payments_due = ( now() - agreement_itr->last_executed ) / agreement_itr->cycle_seconds;
+  eosio_assert(agreement_itr->pending_payments == 0, "Pending payments must first be processed before unsubscribing.");
+  eosio_assert(payments_due == 0, "Due payments must be processed before unsubscribing");
+
   agreement_itr = agreements_table_secondary.erase(agreement_itr);
 }
 
 void recurringpay::alert( name to, string memo ) {
   eosio_assert( is_account( to ), Messages::TO_ACCCOUNT_DNE );
   require_recipient( to );
+}
+
+void recurringpay::unregservice( name provider ) {
+
+  services services_table( _self, _self.value );
+  auto services_table_itr = services_table.find(provider.value);
+  eosio_assert( services_table_itr != services_table.end(), "Service Not Registered!" );
+
+  services_table.erase(services_table_itr);
 }
 
 void recurringpay::regservice( name provider, string description, name code, asset quantity) {
@@ -312,7 +330,7 @@ void recurringpay::transferAction( name self, name code ) {
     eosio_assert(data.quantity.amount > 0, Messages::NEED_POSITIVE_TRANSFER_AMOUNT);
     eosio_assert(data.memo.size() <= 256, Messages::MEMO_TOO_LONG );
 
-    // Reference contract token stats
+    // Verify with origin contract token stats
     auto sym = data.quantity.symbol.code().raw();
     stats statstable( code, sym );
     const auto& st = statstable.get( sym );
@@ -351,6 +369,8 @@ void recurringpay::withdraw( name owner, name contract, asset quantity ) {
   const auto& st = statstable.get( sym.raw() );
   eosio_assert( quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
 
+  // TODO: Consider: If balance after withdraw is less than existing subscription agreements, then potential default
+
   sub_balance(owner, contract, quantity);
 
   // TODO: Check contract for our actual balance, if not found then remove from our balances_table
@@ -363,7 +383,7 @@ void recurringpay::withdraw( name owner, name contract, asset quantity ) {
 extern "C" void apply(uint64_t receiver, uint64_t code, uint64_t action) {
     if (code == receiver) { // Calling our contract actions
       switch (action) {
-        EOSIO_DISPATCH_HELPER(recurringpay, (addtokens)(withdraw)(updatefee)(subscribe)(unsubscribe)(process))
+        EOSIO_DISPATCH_HELPER(recurringpay, (addtokens)(removetokens)(withdraw)(updatefee)(subscribe)(unsubscribe)(process)(unregservice))
       }
       /* does not allow destructor of thiscontract to run: eosio_exit(0); */
     } else if(action == EOS_TRANSFER_ACTION.value) { // External transfer to recurringpay

@@ -110,6 +110,7 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
       name to;
       raw_token_profile token_profile_amount;
       uint32_t cycle_seconds;
+      uint16_t pending_payments;
       uint64_t last_executed;
       uint16_t execution_count;
       asset fee;
@@ -181,6 +182,9 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
     void addtokens( name provider, vector<raw_token_service_stat> valid_tokens );
 
     [[eosio::action]]
+    void removetokens( name provider, vector<raw_token_service_stat> valid_tokens );
+
+    [[eosio::action]]
     void withdraw( name owner, name contract, asset quantity );
 
     [[eosio::action]]
@@ -191,6 +195,9 @@ class [[eosio::contract("recurringpay")]] recurringpay : public contract {
 
     [[eosio::action]]
     void unsubscribe( name provider, name from, name to );
+
+    [[eosio::action]]
+    void unregservice( name provider  );
 
     [[eosio::action]]
     void process( name provider, name from, name to );
