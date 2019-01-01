@@ -72,7 +72,9 @@ void recurringpay::execute_subscription( name provider, name from, name to,
   sub_balance( from, contract, quantity );
   add_balance( to, contract, quantity - fee, _self );
   // Service provider gets fee
-  add_balance( provider, contract, fee, _self );
+  if(fee.amount > 0) {
+    add_balance( provider, contract, fee, _self );
+  }
 }
 
 void recurringpay::addtokens( name provider, vector<raw_token_service_stat> valid_tokens )
