@@ -238,24 +238,47 @@ void recurringpay::process( name provider, name from, name to ) {
   eosio_assert(pending_payments >= 1, "Subscription is not due");
   print("Number of pending payments is: ", (uint64_t) pending_payments); print("\n");
 
-  // TODO: Calculate the total ammount due without creating overdrawn balance, and execute_subscription
+  // Check that payer has funds, if not we process what we can
+  balances balances_table( _self, from.value );
+  auto balances_table_secondary = balances_table.get_index<"code.symbol"_n>();
+  auto token_contract_id = combine_ids(
+    agreement_itr->token_profile_amount.contract.value,
+    agreement_itr->token_profile_amount.quantity.symbol.code().raw()
+  );
+  auto balances_table_secondary_itr = balances_table_secondary.find( token_contract_id );
 
-  // TODO: If from doesn't have funds, cancel subscription agreement.
+  bool has_sufficient_funds = true;
+  uint16_t payable = pending_payments;
+  if(balances_table_secondary_itr->quantity < agreement_itr->token_profile_amount.quantity * pending_payments) {
+    has_sufficient_funds = false;
+    // TODO: find payable amount
+    //required_payment = balances_table_secondary_itr->quantity / agreement_itr->token_profile_amount.quantity;
+    payable = balances_table_secondary_itr->quantity.amount / agreement_itr->token_profile_amount.quantity.amount;
+    print("Balance: ", balances_table_secondary_itr->quantity.amount); print("\n");
+    print("Pledge Amount: ", agreement_itr->token_profile_amount.quantity.amount); print("\n");
+    print("Payable: ", (uint64_t) payable); print("\n");
+  }
 
   execute_subscription(
     provider,
     agreement_itr->from,
     agreement_itr->to,
     agreement_itr->token_profile_amount.contract,
-    agreement_itr->token_profile_amount.quantity,
-    agreement_itr->fee
+    agreement_itr->token_profile_amount.quantity * payable,
+    agreement_itr->fee * payable
   );
 
-  agreements_table_secondary.modify( agreement_itr, same_payer, [&]( auto& s ) {
-    s.last_executed = date_in_seconds; // TODO: Check for overflow
-    s.execution_count++;
-    s.pending_payments = --pending_payments;
-  });
+  // If payer didn't have funds, cancel subscription agreement.  Payer is delinquent.
+  if(has_sufficient_funds) {
+    agreements_table_secondary.modify( agreement_itr, same_payer, [&]( auto& s ) {
+      s.last_executed = date_in_seconds; // TODO: Check for overflow
+      s.execution_count += payable;
+      s.pending_payments = 0;
+    });
+  } else {
+    print("Overdrawn, cancelling subscription"); print("\n");
+    agreements_table_secondary.erase(agreement_itr);
+  }
 
 }
 
