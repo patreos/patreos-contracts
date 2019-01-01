@@ -238,6 +238,8 @@ void recurringpay::process( name provider, name from, name to ) {
   eosio_assert(pending_payments >= 1, "Subscription is not due");
   print("Number of pending payments is: ", (uint64_t) pending_payments); print("\n");
 
+  // TODO: Calculate the total ammount due without creating overdrawn balance, and execute_subscription
+
   // TODO: If from doesn't have funds, cancel subscription agreement.
 
   execute_subscription(
