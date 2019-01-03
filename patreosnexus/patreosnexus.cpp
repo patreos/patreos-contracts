@@ -31,6 +31,8 @@ void patreosnexus::pledge( name from, name to )
   auto pledge_by_parties_id = combine_ids(from.value, to.value);
 
   auto pledges_table_secondary_itr = pledges_table_secondary.find( pledge_by_parties_id );
+
+  // TODO: If pledge exists, verify recurringpay exists, if not, let user repledge
   eosio_assert(pledges_table_secondary_itr == pledges_table_secondary.end(), "Pledge already exists!");
 
   // TODO: Decide on official account

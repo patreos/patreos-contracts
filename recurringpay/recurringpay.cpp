@@ -154,6 +154,7 @@ void recurringpay::subscribe( name provider, recurringpay::raw_agreement agreeme
   eosio_assert(token_service_stat_itr != validtokens_table_secondary.end(), "Service provider doesn't accept this token");
 
   // TODO: Check provider token symbol == flat_fee symbol == subscription symbol
+  eosio_assert(agreement.token_profile_amount.quantity.amount > 0, "Subscription quantity must be non-zero!"); // Why would this ever happen?
 
   // Adjust fee logic by percentage
   float percentage_fee = token_service_stat_itr->percentage_fee / 100.00;
@@ -230,6 +231,7 @@ void recurringpay::process( name provider, name from, name to ) {
   eosio_assert(agreement_itr->last_executed <= date_in_seconds, "Invalid last execution date!"); // No time travel allowed
   eosio_assert(agreement_itr->last_executed > 1545699988, "Invalid last execution date!"); // Again, no time travelling
   eosio_assert(agreement_itr->pending_payments >= 0, "Invalid due payments!"); // Why would this ever happen?
+  eosio_assert(agreement_itr->token_profile_amount.quantity.amount > 0, "Subscription quantity must be non-zero!"); // Why would this ever happen?
 
   uint64_t payments_due = ( date_in_seconds - agreement_itr->last_executed ) / agreement_itr->cycle_seconds;
   uint16_t pending_payments = agreement_itr->pending_payments;
@@ -273,8 +275,8 @@ void recurringpay::process( name provider, name from, name to ) {
   // If payer didn't have funds, cancel subscription agreement.  Payer is delinquent.
   if(has_sufficient_funds) {
     agreements_table_secondary.modify( agreement_itr, same_payer, [&]( auto& s ) {
-      s.last_executed = date_in_seconds; // TODO: Check for overflow
-      s.execution_count += payable;
+      s.last_executed = date_in_seconds;
+      s.execution_count += payable; // TODO: consider overflow
       s.pending_payments = 0;
     });
   } else {
