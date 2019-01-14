@@ -34,25 +34,31 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       name      owner;
       string    name;
       string    description;
+      string      image_url;
+      string      banner_url;
+      uint64_t last_publication;
 
       uint64_t primary_key() const { return owner.value; }
-      EOSLIB_SERIALIZE( profile, (owner)(name)(description) )
+      EOSLIB_SERIALIZE( profile, (owner)(name)(description)(image_url)(banner_url)(last_publication) )
     };
 
     struct [[eosio::table]] publication {
-      uint64_t    item; // unique
-      string      title;
-      string      description;
-      string      url;
+      uint64_t  key; // unique
+      string  title;
+      string  description;
+      string  url;
+      bool  pending;
+      uint64_t datetime;
 
-      uint64_t primary_key() const { return item; }
-      EOSLIB_SERIALIZE( publication, (item)(title)(description)(url) )
+      uint64_t primary_key() const { return key; }
+      EOSLIB_SERIALIZE( publication, (key)(title)(description)(url) )
     };
 
     struct [[eosio::table]] pledge_item {
       uint64_t    key; // unique
       name      from;
       name      to;
+      uint64_t last_publication;
 
       uint64_t primary_key() const { return key; }
       uint128_t get_pledge_by_parties() const {
@@ -64,7 +70,10 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       uint64_t get_creator() const {
         return to.value;
       }
-      EOSLIB_SERIALIZE( pledge_item, (key)(from)(to) )
+      uint64_t get_by_publication() const {
+        return last_publication;
+      }
+      EOSLIB_SERIALIZE( pledge_item, (key)(from)(to)(last_publication) )
     };
 
     struct raw_token_profile {
@@ -124,6 +133,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
     //typedef eosio::multi_index<"pledges"_n, pledge_data> pledges; // we pay ram above certain PATR
     typedef eosio::multi_index<"profiles"_n, profile> profiles; // user pays ram
     typedef eosio::multi_index<"publications"_n, publication> publications; // we pay ram, remove after processed
+
     typedef multi_index<"pledges"_n, pledge_item,
       indexed_by<
         "from.to"_n,
@@ -136,6 +146,10 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       indexed_by<
         "to"_n,
         const_mem_fun <pledge_item, uint64_t, &pledge_item::get_creator>
+      >,
+      indexed_by<
+        "publication"_n,
+        const_mem_fun <pledge_item, uint64_t, &pledge_item::get_by_publication>
       >
     > pledges;
 
@@ -189,5 +203,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
 
     [[eosio::action]]
     void blurb( name from, name to, string memo );
+
+    void process( name owner , uint16_t limit );
 
 };

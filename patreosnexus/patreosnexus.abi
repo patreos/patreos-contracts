@@ -1,5 +1,5 @@
 {
-    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Wed Jan  2 18:33:39 2019",
+    "____comment": "This file was generated with eosio-abigen. DO NOT EDIT Sun Jan 13 18:03:35 2019",
     "version": "eosio::abi/1.1",
     "structs": [
         {
@@ -115,6 +115,10 @@
                 {
                     "name": "to",
                     "type": "name"
+                },
+                {
+                    "name": "last_publication",
+                    "type": "uint64"
                 }
             ]
         },
@@ -133,6 +137,18 @@
                 {
                     "name": "description",
                     "type": "string"
+                },
+                {
+                    "name": "image_url",
+                    "type": "string"
+                },
+                {
+                    "name": "banner_url",
+                    "type": "string"
+                },
+                {
+                    "name": "last_publication",
+                    "type": "uint64"
                 }
             ]
         },
@@ -141,7 +157,7 @@
             "base": "",
             "fields": [
                 {
-                    "name": "item",
+                    "name": "key",
                     "type": "uint64"
                 },
                 {
@@ -155,6 +171,14 @@
                 {
                     "name": "url",
                     "type": "string"
+                },
+                {
+                    "name": "pending",
+                    "type": "bool"
+                },
+                {
+                    "name": "datetime",
+                    "type": "uint64"
                 }
             ]
         },
