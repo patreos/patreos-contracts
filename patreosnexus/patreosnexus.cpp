@@ -31,11 +31,7 @@ void patreosnexus::pledge( name from, name to )
   pledges pledges_table(_self, _self.value);
   auto pledges_table_secondary = pledges_table.get_index<"from.to"_n>();
   auto pledge_by_parties_id = combine_ids(from.value, to.value);
-
   auto pledges_table_secondary_itr = pledges_table_secondary.find( pledge_by_parties_id );
-
-  // TODO: If pledge exists, verify recurringpay exists, if not, let user repledge
-  eosio_assert(pledges_table_secondary_itr == pledges_table_secondary.end(), "Pledge already exists!");
 
   // TODO: Decide on official account
   name patreos_service_account = "patreosnexus"_n;
@@ -43,12 +39,10 @@ void patreosnexus::pledge( name from, name to )
   agreements agreements_table( "recurringpay"_n, patreos_service_account.value );
   auto agreements_table_secondary = agreements_table.get_index<"from.to"_n>();
   auto agreement_itr = agreements_table_secondary.find( pledge_by_parties_id );
-  eosio_assert(agreement_itr != agreements_table_secondary.end(), "Subscription agreement should exist beforehand!");
 
 
   bool pledge_exists = pledges_table_secondary_itr != pledges_table_secondary.end();
   bool agreement_exists = agreement_itr != agreements_table_secondary.end();
-
 
   // Handle all delinquency states between agreements and pledges
   if(agreement_exists) {
