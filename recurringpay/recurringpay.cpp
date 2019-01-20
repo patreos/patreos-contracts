@@ -263,14 +263,16 @@ void recurringpay::process( name provider, name from, name to ) {
     print("Payable: ", (uint64_t) payable); print("\n");
   }
 
-  execute_subscription(
-    provider,
-    agreement_itr->from,
-    agreement_itr->to,
-    agreement_itr->token_profile_amount.contract,
-    agreement_itr->token_profile_amount.quantity * payable,
-    agreement_itr->fee * payable
-  );
+  if(payable > 0) {
+    execute_subscription(
+      provider,
+      agreement_itr->from,
+      agreement_itr->to,
+      agreement_itr->token_profile_amount.contract,
+      agreement_itr->token_profile_amount.quantity * payable,
+      agreement_itr->fee * payable
+    );
+  }
 
   // If payer didn't have funds, cancel subscription agreement.  Payer is delinquent.
   if(has_sufficient_funds) {

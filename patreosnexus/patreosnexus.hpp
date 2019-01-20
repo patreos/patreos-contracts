@@ -47,6 +47,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
       string  title;
       string  description;
       string  url;
+      // string image;
       bool  pending;
       uint64_t datetime;
 
@@ -193,7 +194,7 @@ class [[eosio::contract("patreosnexus")]] patreosnexus : public contract {
     void unpledge( name from, name to );
 
     [[eosio::action]]
-    void setprofile( name owner, profile _profile );
+    void setprofile( profile _profile );
 
     [[eosio::action]]
     void unsetprofile( name owner );

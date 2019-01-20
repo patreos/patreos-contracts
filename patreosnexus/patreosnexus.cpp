@@ -123,21 +123,30 @@ void patreosnexus::unpledge( name from, name to )
   pledges_table_secondary.erase( pledges_table_secondary_itr );
 }
 
-void patreosnexus::setprofile( name owner, patreosnexus::profile _profile )
+void patreosnexus::setprofile( patreosnexus::profile _profile )
 {
-  require_auth(owner);
+  require_auth(_profile.owner);
 
   // TODO: Validate _profile object
 
   profiles profiles_table( _self, _self.value); // table scoped by contract
-  auto profiles_table_itr = profiles_table.find( owner.value );
+  auto profiles_table_itr = profiles_table.find( _profile.owner.value );
   if( profiles_table_itr == profiles_table.end() ) {
-     profiles_table.emplace( owner, [&]( auto& p ){
-       p = _profile;
+     profiles_table.emplace( _profile.owner, [&]( auto& p ){
+       p.owner = _profile.owner;
+       p.name = _profile.name;
+       p.description = _profile.description;
+       p.image_url = _profile.image_url;
+       p.banner_url = _profile.banner_url;
+       p.last_publication = 0;
      });
   } else {
      profiles_table.modify( profiles_table_itr, same_payer, [&]( auto& p ) {
-       p = _profile;
+       p.owner = _profile.owner;
+       p.name = _profile.name;
+       p.description = _profile.description;
+       p.image_url = _profile.image_url;
+       p.banner_url = _profile.banner_url;
      });
   }
 }
