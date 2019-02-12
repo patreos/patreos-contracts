@@ -23,9 +23,6 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     void issue( name to, asset quantity, string memo );
 
     [[eosio::action]]
-    void retire( asset quantity, string memo );
-
-    [[eosio::action]]
     void transfer( name from, name to, asset quantity, string memo );
 
     [[eosio::action]]

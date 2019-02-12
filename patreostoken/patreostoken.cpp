@@ -54,30 +54,6 @@ void patreostoken::issue( name to, asset quantity, string memo )
     }
 }
 
-void patreostoken::retire( asset quantity, string memo )
-{
-    auto sym = quantity.symbol;
-    eosio_assert( sym.is_valid(), Messages::INVALID_SYMBOL_NAME );
-    eosio_assert( memo.size() <= 256, Messages::MEMO_TOO_LONG );
-
-    stats statstable( _self, sym.code().raw() );
-    auto existing = statstable.find( sym.code().raw() );
-    eosio_assert( existing != statstable.end(), Messages::TOKEN_DNE );
-    const auto& st = *existing;
-
-    require_auth( st.issuer );
-    eosio_assert( quantity.is_valid(), Messages::INVALID_QUANTITY );
-    eosio_assert( quantity.amount > 0, Messages::NEED_POSITIVE_RETIRE_QUANTITY );
-
-    eosio_assert( quantity.symbol == st.supply.symbol, Messages::INVALID_SYMBOL );
-
-    statstable.modify( st, same_payer, [&]( auto& s ) {
-       s.supply -= quantity;
-    });
-
-    sub_balance( st.issuer, quantity );
-}
-
 void patreostoken::transfer( name    from,
                       name    to,
                       asset   quantity,
@@ -179,8 +155,6 @@ void patreostoken::unstake( name account, asset quantity )
     stats statstable( _self, sym.code().raw() );
     const auto& st = statstable.get( sym.code().raw(), Messages::TOKEN_DNE_YET );
 
-    require_recipient( account );
-
     eosio_assert( quantity.is_valid(), "invalid quantity" );
     eosio_assert( quantity.amount > 0, "must transfer positive quantity" );
     eosio_assert( quantity.symbol == st.supply.symbol, "symbol precision mismatch" );
@@ -228,4 +202,4 @@ void patreostoken::closestake( name owner, const symbol& symbol )
    stakes_table.erase( it );
 }
 
-EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(closestake)(retire)(stake)(unstake) )
+EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(closestake)(stake)(unstake) )
