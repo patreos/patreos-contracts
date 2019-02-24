@@ -100,6 +100,7 @@ void patreostoken::sub_stake( name owner, asset value ) {
    from_stakes.modify( from, owner, [&]( auto& a ) {
      a.balance -= value;
    });
+
 }
 
 void patreostoken::add_balance( name owner, asset value, name ram_payer )
@@ -145,6 +146,20 @@ void patreostoken::stake( name account, asset quantity )
 
     sub_balance( account, quantity );
     add_stake( account, quantity, account );
+
+    events event_table( _self, _self.value );
+    auto event_table_itr = event_table.find( 0 );
+    if( event_table_itr == event_table.end() ) {
+       event_table.emplace( _self, [&]( auto& s ){
+         s.id = 0;
+         s.staked = quantity;
+         s.unstaked = 0 * quantity;
+       });
+    } else {
+       event_table.modify( event_table_itr, _self, [&]( auto& s ) {
+         s.staked += quantity;
+       });
+    }
 }
 
 // Will have a cooldown period, reclaim tokens n hours after unstaked
@@ -161,6 +176,36 @@ void patreostoken::unstake( name account, asset quantity )
 
     sub_stake( account, quantity );
     add_balance( account, quantity, account );
+
+    events event_table( _self, _self.value );
+    auto event_table_itr = event_table.find( 0 );
+    if( event_table_itr == event_table.end() ) {
+       event_table.emplace( _self, [&]( auto& s ){
+         s.id = 0;
+         s.unstaked = quantity;
+         s.staked = 0 * quantity;
+       });
+    } else {
+       event_table.modify( event_table_itr, _self, [&]( auto& s ) {
+         s.unstaked += quantity;
+       });
+    }
+}
+
+// Will have a cooldown period, reclaim tokens n hours after unstaked
+void patreostoken::eventupdate( asset staked, asset unstaked )
+{
+    require_auth( "patreosvault"_n );
+
+    events event_table( _self, _self.value );
+    const auto& event_table_itr = event_table.get( 0, "No Events Record" );
+    eosio_assert( staked.amount >= 0, "No Negatives" );
+    eosio_assert( unstaked.amount >= 0, "No Negatives" );
+
+    event_table.modify( event_table_itr, _self, [&]( auto& s ) {
+      s.unstaked += unstaked;
+      s.staked += staked;
+    });
 }
 
 void patreostoken::open( name owner, const symbol& symbol, name ram_payer )
@@ -202,4 +247,4 @@ void patreostoken::closestake( name owner, const symbol& symbol )
    stakes_table.erase( it );
 }
 
-EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(closestake)(stake)(unstake) )
+EOSIO_DISPATCH( patreostoken, (create)(issue)(transfer)(open)(close)(closestake)(stake)(unstake)(eventupdate) )

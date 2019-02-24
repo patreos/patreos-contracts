@@ -40,6 +40,9 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     [[eosio::action]]
     void closestake( name owner, const symbol& symbol );
 
+    [[eosio::action]]
+    void eventupdate( asset staked, asset unstaked );
+
     static asset get_supply( name token_contract_account, symbol_code sym_code )
     {
       stats statstable( token_contract_account, sym_code.raw() );
@@ -55,6 +58,13 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     }
 
   private:
+    struct [[eosio::table]] event {
+      uint64_t id;
+      asset    staked;
+      asset    unstaked;
+      uint64_t primary_key()const { return id; }
+    };
+
     struct [[eosio::table]] account {
       asset    balance;
       uint64_t primary_key()const { return balance.symbol.code().raw(); }
@@ -71,6 +81,9 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     typedef eosio::multi_index< "accounts"_n, account > accounts;
     typedef eosio::multi_index< "stakes"_n, account > stakes;
     typedef eosio::multi_index< "stat"_n, currency_stats > stats;
+
+    typedef eosio::multi_index< "events"_n, event > events;
+
 
     void sub_balance( name owner, asset value );
     void add_balance( name owner, asset value, name ram_payer );
