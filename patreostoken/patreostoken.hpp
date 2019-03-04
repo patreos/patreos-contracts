@@ -58,7 +58,7 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     }
 
   private:
-    struct [[eosio::table]] event {
+    struct [[eosio::table]] global {
       uint64_t id;
       asset    staked;
       asset    unstaked;
@@ -82,7 +82,7 @@ class [[eosio::contract("patreostoken")]] patreostoken : public contract {
     typedef eosio::multi_index< "stakes"_n, account > stakes;
     typedef eosio::multi_index< "stat"_n, currency_stats > stats;
 
-    typedef eosio::multi_index< "events"_n, event > events;
+    typedef eosio::multi_index< "globals"_n, global > globals;
 
 
     void sub_balance( name owner, asset value );

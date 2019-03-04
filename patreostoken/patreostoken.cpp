@@ -1,5 +1,6 @@
 #include "patreostoken.hpp"
 #include "../common/messages.hpp"
+#include <math.h>
 
 using namespace eosio;
 
@@ -147,16 +148,16 @@ void patreostoken::stake( name account, asset quantity )
     sub_balance( account, quantity );
     add_stake( account, quantity, account );
 
-    events event_table( _self, _self.value );
-    auto event_table_itr = event_table.find( 0 );
-    if( event_table_itr == event_table.end() ) {
-       event_table.emplace( _self, [&]( auto& s ){
+    globals globals_table( _self, _self.value );
+    auto globals_table_itr = globals_table.find( 0 );
+    if( globals_table_itr == globals_table.end() ) {
+       globals_table.emplace( _self, [&]( auto& s ){
          s.id = 0;
          s.staked = quantity;
          s.unstaked = 0 * quantity;
        });
     } else {
-       event_table.modify( event_table_itr, _self, [&]( auto& s ) {
+       globals_table.modify( globals_table_itr, _self, [&]( auto& s ) {
          s.staked += quantity;
        });
     }
@@ -177,16 +178,16 @@ void patreostoken::unstake( name account, asset quantity )
     sub_stake( account, quantity );
     add_balance( account, quantity, account );
 
-    events event_table( _self, _self.value );
-    auto event_table_itr = event_table.find( 0 );
-    if( event_table_itr == event_table.end() ) {
-       event_table.emplace( _self, [&]( auto& s ){
+    globals globals_table( _self, _self.value );
+    auto globals_table_itr = globals_table.find( 0 );
+    if( globals_table_itr == globals_table.end() ) {
+       globals_table.emplace( _self, [&]( auto& s ){
          s.id = 0;
          s.unstaked = quantity;
          s.staked = 0 * quantity;
        });
     } else {
-       event_table.modify( event_table_itr, _self, [&]( auto& s ) {
+       globals_table.modify( globals_table_itr, _self, [&]( auto& s ) {
          s.unstaked += quantity;
        });
     }
@@ -197,12 +198,12 @@ void patreostoken::eventupdate( asset staked, asset unstaked )
 {
     require_auth( "patreosvault"_n );
 
-    events event_table( _self, _self.value );
-    const auto& event_table_itr = event_table.get( 0, "No Events Record" );
+    globals globals_table( _self, _self.value );
+    const auto& globals_table_itr = globals_table.get( 0, "No globals Record" );
     eosio_assert( staked.amount >= 0, "No Negatives" );
     eosio_assert( unstaked.amount >= 0, "No Negatives" );
 
-    event_table.modify( event_table_itr, _self, [&]( auto& s ) {
+    globals_table.modify( globals_table_itr, _self, [&]( auto& s ) {
       s.unstaked += unstaked;
       s.staked += staked;
     });
