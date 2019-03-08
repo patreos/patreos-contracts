@@ -21,7 +21,7 @@ void patreosmoney::setglobal(
        g.active_round_duration = active_round_duration;
        g.max_round_lifespan = max_round_lifespan;
        g.max_round_payout = max_round_payout;
-       g.date_activated = now();
+       g.date_started = now();
        g.can_withdraw = false;
        g.active = false;
        g.required_votes = 21;
@@ -225,12 +225,18 @@ void patreosmoney::newround( name initialier )
   globals globals_table( _self, _self.value );
   const auto& globals_table_itr = globals_table.get( 0, "No globals object found" );
 
-  // verify that patreosmoney has PATR and global->active is true
+  // Verify that patreosmoney has PATR and global->active is true
   eosio_assert( globals_table_itr.active, "Inflation rewards are no longer active" );
-  if(globals_table_itr.active_contract_duration > 0) {
-    eosio_assert( now() - globals_table_itr.date_activated < globals_table_itr.active_contract_duration, "Inflation rewards are no longer active.  Contract expired." );
-  }
   eosio_assert( accounts_table_itr.balance.amount > 0, "Inflation balance is empty.  No more payouts.");
+
+  // Verify contract hasn't expired
+  if(globals_table_itr.active_contract_duration > 0) {
+    if(now() - globals_table_itr.date_started >= globals_table_itr.active_contract_duration) {
+      globals_table.modify( globals_table_itr, same_payer, [&]( auto& g ) {
+        g.active = false;
+      });
+    }
+  }
 
   rounds rounds_table( _self, _self.value );
   const auto& rounds_table_itr = rounds_table.get( globals_table_itr.active_round_id, "Active round not found" );
@@ -278,11 +284,10 @@ void patreosmoney::newround( name initialier )
     expired_table.emplace( _self, [&]( auto& e ){
       e.id = oldest_rounds_table_itr->id;
     });
-    rounds_table.erase( oldest_rounds_table_itr );
-
     globals_table.modify( globals_table_itr, same_payer, [&]( auto& g ) {
       g.last_deleted_round_id = oldest_rounds_table_itr->id;
     });
+    rounds_table.erase( oldest_rounds_table_itr );
   }
 }
 
@@ -331,7 +336,7 @@ void patreosmoney::cleanup( name initialier )
   const auto& expired_table_itr = expired_table.begin();
   eosio_assert( expired_table_itr != expired_table.end(), "No cleanup items found" );
 
-  uint16_t erase_limit = 50;
+  uint16_t erase_limit = 20;
   uint16_t deltas_table_erased = 0;
   uint16_t disqualified_table_erased = 0;
 
