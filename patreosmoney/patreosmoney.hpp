@@ -79,6 +79,8 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
       uint64_t active_round_duration;
       uint64_t max_round_lifespan;
       uint64_t date_activated;
+      uint64_t required_votes;
+      uint64_t votes;
       asset max_round_payout;
       bool can_withdraw;
       bool active;
@@ -145,4 +147,7 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
 
     [[eosio::action]]
     void deactivate();
+
+    [[eosio::action]]
+    void cleanvotes();
 };

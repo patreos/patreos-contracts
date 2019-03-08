@@ -23,7 +23,9 @@ void patreosmoney::setglobal(
        g.max_round_payout = max_round_payout;
        g.date_activated = now();
        g.can_withdraw = false;
-       g.active = true;
+       g.active = false;
+       g.required_votes = 21;
+       g.votes = 0;
      });
 
      patrglobals patreostoken_globals_table( "patreostoken"_n, "patreostoken"_n.value );
@@ -54,6 +56,11 @@ void patreosmoney::vote(name user, bool launch, asset max_round_payout)
 {
   require_auth(user);
 
+  globals globals_table( _self, _self.value );
+  const auto& globals_table_itr = globals_table.begin();
+  eosio_assert( globals_table_itr != globals_table.end(), "Global object not found!");
+  eosio_assert( globals_table_itr->votes < globals_table_itr->required_votes, "Voting has completed!");
+
   votes votes_table( _self, _self.value );
   auto votes_table_itr = votes_table.find( user.value );
   if( votes_table_itr == votes_table.end() ) {
@@ -61,6 +68,9 @@ void patreosmoney::vote(name user, bool launch, asset max_round_payout)
        p.account = user;
        p.launch = launch;
        p.max_round_payout = max_round_payout;
+     });
+     globals_table.modify( globals_table_itr, same_payer, [&]( auto& g ) {
+       g.votes++;
      });
   } else {
      votes_table.modify( votes_table_itr, same_payer, [&]( auto& p ) {
@@ -70,13 +80,28 @@ void patreosmoney::vote(name user, bool launch, asset max_round_payout)
   }
 
   // TODO: if voter table has 10%, then activate
-  if(true) {
-    globals globals_table( _self, _self.value );
-    const auto& globals_table_itr = globals_table.begin();
-    globals_table.modify( globals_table_itr, _self, [&]( auto& g ) {
+  if(globals_table_itr->votes >= globals_table_itr->required_votes) {
+    globals_table.modify( globals_table_itr, same_payer, [&]( auto& g ) {
       g.active = true;
     });
   }
+}
+
+void patreosmoney::cleanvotes()
+{
+  require_auth("patreosvault"_n);
+
+  votes votes_table( _self, _self.value );
+  auto votes_table_itr = votes_table.begin();
+  while(votes_table_itr != votes_table.end()) {
+    votes_table.erase(votes_table_itr++);
+  }
+  globals globals_table( _self, _self.value );
+  const auto& globals_table_itr = globals_table.begin();
+  eosio_assert( globals_table_itr != globals_table.end(), "Global object not found!");
+  globals_table.modify( globals_table_itr, same_payer, [&]( auto& g ) {
+    g.votes = 0;
+  });
 }
 
 void patreosmoney::deactivate()
@@ -85,6 +110,7 @@ void patreosmoney::deactivate()
 
   globals globals_table( _self, _self.value );
   const auto& globals_table_itr = globals_table.begin();
+  eosio_assert( globals_table_itr != globals_table.end(), "Global object not found!");
   globals_table.modify( globals_table_itr, _self, [&]( auto& g ) {
     g.active = false;
   });
@@ -128,7 +154,6 @@ void patreosmoney::withdraw( name user )
   globals globals_table( _self, _self.value );
   const auto& globals_table_itr = globals_table.get( 0, "No globals object found" );
   eosio_assert( globals_table_itr.can_withdraw, "Withdraw is currently not available." );
-
 }
 
 void patreosmoney::claim( name user )
@@ -138,7 +163,7 @@ void patreosmoney::claim( name user )
   // verify that global->active is true
   globals globals_table( _self, _self.value );
   const auto& globals_table_itr = globals_table.get( 0, "No globals object found" );
-  eosio_assert( globals_table_itr.active, "Inflation rewards are no longer active" );
+  eosio_assert( globals_table_itr.active, "Inflation rewards are not active" );
 
   asset available_claim = 0 * globals_table_itr.max_round_payout;
   uint64_t claim_round = globals_table_itr.last_deleted_round_id;
@@ -207,11 +232,9 @@ void patreosmoney::newround( name initialier )
   }
   eosio_assert( accounts_table_itr.balance.amount > 0, "Inflation balance is empty.  No more payouts.");
 
-
   rounds rounds_table( _self, _self.value );
   const auto& rounds_table_itr = rounds_table.get( globals_table_itr.active_round_id, "Active round not found" );
   uint64_t active_round_id = rounds_table_itr.id;
-
 
   // check active round, and if (now - active_reward_round->start_time) > global->active_round_duration,
   // ... set current round to inactive, create new round, and set global->active_round to id
@@ -261,7 +284,6 @@ void patreosmoney::newround( name initialier )
       g.last_deleted_round_id = oldest_rounds_table_itr->id;
     });
   }
-
 }
 
 void patreosmoney::slashreward(name user)
@@ -350,4 +372,4 @@ void patreosmoney::cleanup( name initialier )
   // TODO: reward initializer
 }
 
-EOSIO_DISPATCH( patreosmoney, (setglobal)(vote)(newround)(claim)(withdraw)(cleanup)(slashreward)(reportdelta)(deactivate) )
+EOSIO_DISPATCH( patreosmoney, (setglobal)(vote)(cleanvotes)(newround)(claim)(withdraw)(cleanup)(slashreward)(reportdelta)(deactivate) )
