@@ -20,13 +20,14 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
         return (uint128_t{x} << 64) | y;
     };
 
-    asset get_round_rewards( name user, uint64_t round_id );
+    asset _get_round_rewards( name user, uint64_t round_id );
 
     struct [[eosio::table]] account {
       asset    balance;
       uint64_t primary_key()const { return balance.symbol.code().raw(); }
     };
 
+    // patreostoken global
     struct [[eosio::table]] patrglobal {
       uint64_t id;
       asset    staked;
@@ -35,6 +36,21 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
     };
 
   private:
+
+    struct [[eosio::table]] vote {
+      name account;
+      bool launch;
+      asset max_round_payout;
+
+      uint64_t primary_key() const { return account.value; }
+    };
+
+    struct [[eosio::table]] payout {
+      name account;
+      asset reward;
+
+      uint64_t primary_key() const { return account.value; }
+    };
 
     struct [[eosio::table]] round_id {
       uint64_t id;
@@ -59,9 +75,12 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
       uint64_t id;
       uint64_t active_round_id;
       uint64_t last_deleted_round_id;
+      uint64_t active_contract_duration;
       uint64_t active_round_duration;
       uint64_t max_round_lifespan;
+      uint64_t date_activated;
       asset max_round_payout;
+      bool can_withdraw;
       bool active;
 
       uint64_t primary_key() const { return id; }
@@ -89,10 +108,15 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
     typedef eosio::multi_index< "disqualified"_n, user > disqualified; // Scoped by round id
     typedef eosio::multi_index< "deltas"_n, delta > deltas; // Scoped by round id
 
+    typedef eosio::multi_index< "votes"_n, vote > votes; // Scoped by _self
+    typedef eosio::multi_index< "payouts"_n, payout > payouts; // Scoped by _self
 
   public:
 
     using contract::contract;
+
+    [[eosio::action]]
+    void withdraw( name user );
 
     [[eosio::action]]
     void claim( name user );
@@ -115,4 +139,10 @@ class [[eosio::contract("patreosmoney")]] patreosmoney : public contract {
       uint64_t max_round_lifespan,
       asset max_round_payout
     );
+
+    [[eosio::action]]
+    void vote( name user, bool launch, asset max_round_payout );
+
+    [[eosio::action]]
+    void deactivate();
 };

@@ -17,9 +17,12 @@ void patreosmoney::setglobal(
        g.id = 0;
        g.active_round_id = 1;
        g.last_deleted_round_id = 0;
+       g.active_contract_duration = 0;
        g.active_round_duration = active_round_duration;
        g.max_round_lifespan = max_round_lifespan;
        g.max_round_payout = max_round_payout;
+       g.date_activated = now();
+       g.can_withdraw = false;
        g.active = true;
      });
 
@@ -38,14 +41,56 @@ void patreosmoney::setglobal(
      });
   } else {
      globals_table.modify( globals_table_itr, _self, [&]( auto& g ) {
+       g.active_contract_duration = 0; // TODO: needs to be a variable
        g.active_round_duration = active_round_duration;
        g.max_round_lifespan = max_round_lifespan;
        g.max_round_payout = max_round_payout;
+       g.can_withdraw = false; // TODO: needs to be a variable
      });
   }
 }
 
-asset patreosmoney::get_round_rewards( name user, uint64_t round_id )
+void patreosmoney::vote(name user, bool launch, asset max_round_payout)
+{
+  require_auth(user);
+
+  votes votes_table( _self, _self.value );
+  auto votes_table_itr = votes_table.find( user.value );
+  if( votes_table_itr == votes_table.end() ) {
+     votes_table.emplace( _self, [&]( auto& p ){
+       p.account = user;
+       p.launch = launch;
+       p.max_round_payout = max_round_payout;
+     });
+  } else {
+     votes_table.modify( votes_table_itr, same_payer, [&]( auto& p ) {
+       p.launch = launch;
+       p.max_round_payout = max_round_payout;
+     });
+  }
+
+  // TODO: if voter table has 10%, then activate
+  if(true) {
+    globals globals_table( _self, _self.value );
+    const auto& globals_table_itr = globals_table.begin();
+    globals_table.modify( globals_table_itr, _self, [&]( auto& g ) {
+      g.active = true;
+    });
+  }
+}
+
+void patreosmoney::deactivate()
+{
+  require_auth("patreosvault"_n);
+
+  globals globals_table( _self, _self.value );
+  const auto& globals_table_itr = globals_table.begin();
+  globals_table.modify( globals_table_itr, _self, [&]( auto& g ) {
+    g.active = false;
+  });
+}
+
+asset patreosmoney::_get_round_rewards( name user, uint64_t round_id )
 {
   rounds rounds_table( _self, _self.value );
   const auto& rounds_table_itr = rounds_table.get( round_id, "Active round not found" );
@@ -76,6 +121,16 @@ asset patreosmoney::get_round_rewards( name user, uint64_t round_id )
   return rounds_table_itr.round_payout * (stakes_table_itr.balance.amount / rounds_table_itr.staked.amount);
 }
 
+void patreosmoney::withdraw( name user )
+{
+  require_auth(user);
+
+  globals globals_table( _self, _self.value );
+  const auto& globals_table_itr = globals_table.get( 0, "No globals object found" );
+  eosio_assert( globals_table_itr.can_withdraw, "Withdraw is currently not available." );
+
+}
+
 void patreosmoney::claim( name user )
 {
   require_auth(user);
@@ -87,15 +142,38 @@ void patreosmoney::claim( name user )
 
   asset available_claim = 0 * globals_table_itr.max_round_payout;
   uint64_t claim_round = globals_table_itr.last_deleted_round_id;
-  while(claim_round < globals_table_itr.active_round_id) {
-    available_claim += get_round_rewards(user, ++claim_round);
+  while(claim_round < globals_table_itr.active_round_id) { // No more than 5 loops
+    available_claim += _get_round_rewards(user, ++claim_round);
   }
   print("Claiming: ", available_claim); print("\n");
 
-  // TODO: SEND CLAIM
-  
   // If patreosmoney has insufficient funds, reward remaining balance.  Inflation has ended. Set global->active to false,
   // ... and erase all rounds
+  accounts accounts_table( "patreostoken"_n, _self.value );
+  const auto& patr_symbol = eosio::symbol("PATR", 4);
+  const auto& accounts_table_itr = accounts_table.get( patr_symbol.code().raw(), "No balance object found" );
+  if(accounts_table_itr.balance < available_claim) {
+    available_claim = accounts_table_itr.balance;
+    globals_table.modify( globals_table_itr, _self, [&]( auto& g ) {
+      g.active = false;
+    });
+  }
+
+  // Add to claim balance
+  if(available_claim.amount > 0) {
+    payouts payouts_table( _self, _self.value );
+    auto payouts_table_itr = payouts_table.find( user.value );
+    if( payouts_table_itr == payouts_table.end() ) {
+       payouts_table.emplace( _self, [&]( auto& p ){
+         p.account = user;
+         p.reward = available_claim;
+       });
+    } else {
+       payouts_table.modify( payouts_table_itr, same_payer, [&]( auto& p ) {
+         p.reward += available_claim;
+       });
+    }
+  }
 
   // if oldest round is older than max lifetime, then remove
   rounds rounds_table( _self, _self.value );
@@ -124,7 +202,10 @@ void patreosmoney::newround( name initialier )
 
   // verify that patreosmoney has PATR and global->active is true
   eosio_assert( globals_table_itr.active, "Inflation rewards are no longer active" );
-  eosio_assert( accounts_table_itr.balance.amount > 0, "No more inflation to pay out");
+  if(globals_table_itr.active_contract_duration > 0) {
+    eosio_assert( now() - globals_table_itr.date_activated < globals_table_itr.active_contract_duration, "Inflation rewards are no longer active.  Contract expired." );
+  }
+  eosio_assert( accounts_table_itr.balance.amount > 0, "Inflation balance is empty.  No more payouts.");
 
 
   rounds rounds_table( _self, _self.value );
@@ -269,4 +350,4 @@ void patreosmoney::cleanup( name initialier )
   // TODO: reward initializer
 }
 
-EOSIO_DISPATCH( patreosmoney, (setglobal)(claim)(newround)(cleanup)(slashreward)(reportdelta) )
+EOSIO_DISPATCH( patreosmoney, (setglobal)(vote)(newround)(claim)(withdraw)(cleanup)(slashreward)(reportdelta)(deactivate) )
